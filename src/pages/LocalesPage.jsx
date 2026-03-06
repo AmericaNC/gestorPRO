@@ -28,7 +28,16 @@ export default function LocalesPage() {
   const fetchLocales = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/locales');
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch('/api/locales', {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ''
+        }
+      });
       const result = await response.json();
       if (result.success) {
         setLocales(result.data);

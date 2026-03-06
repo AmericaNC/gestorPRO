@@ -1,6 +1,5 @@
 
 export default async function handler(req, res) {
-  // supports GET, POST, etc. just like Express
   if (req.method === 'GET') {
     res.status(200).json({ message: 'Hello from Vercel function!' })
   } else {

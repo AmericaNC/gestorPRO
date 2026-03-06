@@ -28,7 +28,6 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
 
-  // Cuando abre en modo edición, carga los datos del local
   useEffect(() => {
     if (open && esEdicion) {
       setForm({
@@ -73,12 +72,20 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
     let savedId = local?.id;
 
     try {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       if (esEdicion) {
         // UPDATE
         payload.id = local.id;
         const response = await fetch('/api/locales', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify(payload)
         });
         const result = await response.json();
@@ -88,7 +95,10 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
         // INSERT
         const response = await fetch('/api/locales', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: token ? `Bearer ${token}` : ''
+          },
           body: JSON.stringify(payload)
         });
         const result = await response.json();
