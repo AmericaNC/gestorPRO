@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   try {
     switch (method) {
       case 'GET':
-        // Traemos los pagos junto con info del contrato y local para que el reporte sea útil
+        // Consultar pagos con información relacionada de contratos y locales
         const { data: getData, error: getError } = await supabase
           .from('pagos')
           .select('*, contratos(inquilino_id), locales(numero)');
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, data: getData });
 
       case 'POST':
-        // Lógica de eliminación (siguiendo tu estándar)
+        // Lógica para eliminar si se recibe la acción correspondiente
         if (req.body.action === 'delete') {
           const { error: delError } = await supabase
             .from('pagos')
@@ -26,29 +26,30 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, message: "Pago eliminado" });
         }
         
-        // Creación: Calculamos la diferencia automáticamente
-        const nuevoPago = { ...req.body };
-        nuevoPago.diferencia = nuevoPago.monto_esperado - nuevoPago.monto_pagado;
-
+        // Creación: Se envía el body tal cual. 
+        // La columna "diferencia" la calcula la base de datos automáticamente.
         const { data: postData, error: postError } = await supabase
           .from('pagos')
-          .insert([nuevoPago])
+          .insert([req.body])
           .select();
+        
         if (postError) throw postError;
         return res.status(201).json({ success: true, data: postData });
 
       case 'PUT':
-        // Actualización: Recalculamos diferencia si se modifican montos
+        // Actualización: Se extrae el ID y se actualizan los campos restantes.
+        // No enviamos "diferencia" para evitar errores de restricción.
         const { id, ...updateData } = req.body;
-        if (updateData.monto_esperado !== undefined || updateData.monto_pagado !== undefined) {
-            updateData.diferencia = (updateData.monto_esperado || 0) - (updateData.monto_pagado || 0);
-        }
+        
+        // Si por error viene 'diferencia' en el body, la eliminamos antes de enviar a Supabase
+        delete updateData.diferencia;
 
         const { data: putData, error: putError } = await supabase
           .from('pagos')
           .update(updateData)
           .eq('id', id)
           .select();
+        
         if (putError) throw putError;
         return res.status(200).json({ success: true, data: putData });
 
