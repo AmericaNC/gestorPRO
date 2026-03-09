@@ -5,7 +5,7 @@ Este documento contiene los comandos de **PowerShell** necesarios para interactu
 > **Nota Importante:** Reemplaza los valores de `id` y `$TOKEN` por los reales antes de ejecutar.
 Tambien considerar que el token AUTH obtenido despues de ejecutar el cliente tiene duracion de 1hr (Inspeccionar > Application > localStorage > http://localhost:5173)
 
-
+![Imagen de la soliitud](EsquemaSQL.png)
 ---
 
 ## PONER EL TOKEN
@@ -14,12 +14,14 @@ Ejecuta esto al abrir tu terminal:
 $TOKEN = "TU_TOKEN_AQUÍ"
 ```
 Las url cambian con los deploy, es conveniente redeployar y sustituir si es necesario.
+
 ## READ (Consultar locales)
 ```powershell
 Invoke-RestMethod -Method Get `
   -Uri "https://gestor-2h2k71rv7-fernandanevarez7171-gmailcoms-projects.vercel.app/api/locales" `
   -Headers @{ Authorization = "Bearer $TOKEN" } | ConvertTo-Json -Depth 10
   ```
+![Imagen de la soliitud](GetLocales.png)
 
   ## CREATE (Crear nuevo local)
   ```powershell
@@ -36,7 +38,7 @@ Invoke-RestMethod -Method Post `
   -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
   -Body $body | ConvertTo-Json -Depth 10
   ```
-
+![Imagen de la soliitud](PostLocales.png)
   
   ## UPDATE (Actualizar local)
   ```powershell
@@ -54,7 +56,7 @@ Invoke-RestMethod -Method Put `
   -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
   -Body $bodyUpdate | ConvertTo-Json -Depth 10
   ```
-
+![Imagen de la soliitud](UpdateLocales.png)
   
   ## DELETE (Eliminar local)
   ```powershell
@@ -65,7 +67,7 @@ $bodyDelete = @{ id = "7949ee3a-9a40-4082-83bd-a89945782113"; action = "delete" 
 Invoke-RestMethod -Method Post -Uri "https://gestor-7i1clbiuk-fernandanevarez7171-gmailcoms-projects.vercel.app/api/locales" -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $bodyDelete
   ```
 
-
+![Imagen de la soliitud](DeleteLocales.png)
   
   ## INSERTAR UN ARRENDATARIO
   ```powershell
@@ -78,7 +80,7 @@ Invoke-RestMethod -Method Post -Uri "https://gestor-7i1clbiuk-fernandanevarez717
 } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri " https://gestor-k6uryjzwc-fernandanevarez7171-gmailcoms-projects.vercel.app/api/arrendatarios" -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $body
   ```
-
+![Imagen de la soliitud](GetArrendatario.png)
   
   ## ACTUALIZAR DATOS DE UN ARRENDATARIO
   ```powershell
@@ -108,7 +110,7 @@ $bodyDelete = @{
 
 Invoke-RestMethod -Method Post -Uri "https://gestor-k6uryjzwc-fernandanevarez7171-gmailcoms-projects.vercel.app/api/arrendatarios" -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $bodyDelete
   ```
-
+![Imagen de la soliitud](DeleteLocales.png)
   
 ## CONSULTAR LOS ARRENDATARIOS
   ```powershell
@@ -118,7 +120,7 @@ $respuesta = Invoke-RestMethod -Method Get `
 
 $respuesta.data | Format-Table id, nombre, estado, email
   ```
-
+![Imagen de la soliitud](GetArrendatario.png)
 ---
 
 ## CREAR UN CONTRATO
@@ -135,7 +137,7 @@ $body = @{
 Invoke-RestMethod -Method Post -Uri "https://gestor-12ez05mt8-fernandanevarez7171-gmailcoms-projects.vercel.app/api/contratos" `
   -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $body
   ```
-
+![Imagen de la soliitud](PostContratos.png)
   
 ## LEER LOS CONTRATOS
   ```powershell
@@ -156,6 +158,7 @@ Invoke-RestMethod -Method Put -Uri "https://gestor-12ez05mt8-fernandanevarez7171
   ```
   Los valores aceptables son "activo", "vencido" y "cancelado"
 
+
   
   ## BORRAR (ESTADO DEL CONTRATO)
   ```powershell
@@ -164,3 +167,77 @@ $bodyDelete = @{ id = "1ed2cb4c-5c3a-4481-9766-e0d0bf659da9"; action = "delete" 
 Invoke-RestMethod -Method Post -Uri " https://gestor-12ez05mt8-fernandanevarez7171-gmailcoms-projects.vercel.app/api/contratos" `
   -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } -Body $bodyDelete
   ```
+
+![Imagen de la soliitud](UpdateContrato-DeleteContrato.png)
+  
+  
+  ## CREAR UN PAGO
+  ```powershell
+$bodyPago = @{
+    periodo        = "Marzo 2026"
+    local_id       = 100
+    contrato_id    = "1f549c39-c455-41d3-9ee6-747fa1e4faf1"
+    monto_esperado = 15000
+    monto_pagado   = 15000
+    fecha_pago     = "2026-03-06"
+    metodo_pago    = "transferencia" # Debe ser minúscula
+    notas          = "Pago completo"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri "https://gestor-nez2fd8c2-fernandanevarez7171-gmailcoms-projects.vercel.app/api/pagos" `
+  -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+  -Body $bodyPago
+  ```
+![Imagen de la soliitud](PostPago.png)
+
+  ## READ (Consultar pagos)
+  ```powershell
+$respuesta = Invoke-RestMethod -Method Get -Uri "https://gestor-nez2fd8c2-fernandanevarez7171-gmailcoms-projects.vercel.app/api/pagos" `
+  -Headers @{ Authorization = "Bearer $TOKEN" }
+
+# Para verlo como una tabla limpia en tu terminal:
+$respuesta.data | Format-Table periodo, monto_esperado, monto_pagado, diferencia, estado, metodo_pago
+  ```
+![Imagen de la soliitud](GetPagos.png)
+
+ ## UPDATE (Actualizar pagos)
+  ```powershell
+$bodyUpdate = @{
+    id           = "88d3a8e2-ed44-4969-99cd-757f989fe9a1"
+    monto_pagado = 15000
+    metodo_pago  = "transferencia"
+    notas        = "Se corrigió el monto, ya está liquidado"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Put -Uri "https://gestor-nez2fd8c2-fernandanevarez7171-gmailcoms-projects.vercel.app/api/pagos" `
+  -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+  -Body $bodyUpdate
+  ```
+
+   ## UPDATE (Actualizar pagos)
+  ```powershell
+$bodyUpdate = @{
+    id           = "88d3a8e2-ed44-4969-99cd-757f989fe9a1"
+    monto_pagado = 15000
+    metodo_pago  = "transferencia"
+    notas        = "Se corrigió el monto, ya está liquidado"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Put -Uri "https://gestor-nez2fd8c2-fernandanevarez7171-gmailcoms-projects.vercel.app/api/pagos" `
+  -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+  -Body $bodyUpdate
+  ```
+
+  
+   ## DELETE (eliminar un pago)
+  ```powershell
+$bodyDelete = @{ 
+    id     = "88d3a8e2-ed44-4969-99cd-757f989fe9a1"
+    action = "delete" 
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri "https://gestor-nez2fd8c2-fernandanevarez7171-gmailcoms-projects.vercel.app/api/pagos" `
+  -Headers @{ Authorization = "Bearer $TOKEN"; "Content-Type" = "application/json" } `
+  -Body $bodyDelete
+  ```
+  ![Imagen de la soliitud](UpdatePagos-DeletePagos.png)
