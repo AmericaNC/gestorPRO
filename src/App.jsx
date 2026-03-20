@@ -2,8 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import LocalesPage from "./pages/LocalesPage";
+import UsersPage from "./pages/UsersPage";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleRoute from "./components/RoleRoute";
 import "./App.css";
 
 const Placeholder = ({ titulo }) => (
@@ -35,7 +37,16 @@ export default function App() {
             <Route path="/financiero" element={<Placeholder titulo="Financiero" />} />
             <Route path="/arrendatarios" element={<Placeholder titulo="Arrendatarios" />} />
             <Route path="/reportes" element={<Placeholder titulo="Reportes" />} />
-            <Route path="/configuracion" element={<Placeholder titulo="Configuración" />} />
+            <Route path="/configuracion" element={
+              <RoleRoute allowedRoles={["admin"]}>
+                <UsersPage />
+              </RoleRoute>
+            } />
+            <Route path="/configuracion/usuarios" element={
+              <RoleRoute allowedRoles={["admin"]}>
+                <UsersPage />
+              </RoleRoute>
+            } />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

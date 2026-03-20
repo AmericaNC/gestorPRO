@@ -42,6 +42,21 @@ Esto iniciará el servidor en:
 http://localhost:5173
 ```
 
+### Usar funciones API con Vercel local
+
+Para que `/api/...` funcione igual que el servidor remoto:
+
+```bash
+npx vercel dev
+```
+
+Y en el frontend asegura la URL base con variable de entorno:
+
+- `.env`:
+  - `VITE_API_URL=https://gestor-jqli2b9n1-fernandanevarez7171-gmailcoms-projects.vercel.app`
+
+Esto permite trabajar con `apiUrl('/api/users')` y `apiUrl('/api/locales')` sin cambiar el fetch manual.
+
 ## Despliegue en Vercel (frontend + API)
 
 1. **Instala el CLI** (opcional para pruebas locales):

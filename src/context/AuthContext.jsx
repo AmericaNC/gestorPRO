@@ -3,6 +3,23 @@ import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext(null)
 
+const DEFAULT_ADMIN_EMAILS = [
+  'usuario.prueba@gmail.com',
+]
+
+function normalizeUser(user) {
+  if (!user) return null
+
+  const metadataRole = user.user_metadata?.role
+  const email = user.email?.toLowerCase()
+  const isDevAdmin = DEFAULT_ADMIN_EMAILS.includes(email)
+
+  return {
+    ...user,
+    role: metadataRole || (isDevAdmin ? 'admin' : 'lector'),
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -13,7 +30,7 @@ export function AuthProvider({ children }) {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
+        setUser(normalizeUser(session?.user ?? null))
       } catch (err) {
         setError(err.message)
       } finally {
@@ -26,7 +43,7 @@ export function AuthProvider({ children }) {
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setUser(session?.user ?? null)
+        setUser(normalizeUser(session?.user ?? null))
       }
     )
 
@@ -42,7 +59,7 @@ export function AuthProvider({ children }) {
       })
 
       if (signInError) throw signInError
-      setUser(data.user)
+      setUser(normalizeUser(data.user))
       return { success: true }
     } catch (err) {
       setError(err.message)

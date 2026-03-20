@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { apiUrl } from "../lib/apiClient";
 import LocalDrawer from "../components/LocalDrawer";
 
-// URL de CONSULTA según tus documentos
-const API_URL_GET = "/api/locales";
+// URL de consulta (usando VITE_API_URL si está configurado)
+const API_URL_GET = apiUrl('/api/locales');
 
 export default function LocalesPage() {
   const [locales, setLocales] = useState([]);

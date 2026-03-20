@@ -16,6 +16,12 @@ const navItems = [
   { to: "/configuracion", label: "Configuración", icon: "config"        },
 ];
 
+const getNavItemsForRole = (role) => {
+  if (role === 'admin') return navItems
+  if (role === 'gestor') return navItems.filter((item) => !['/configuracion'].includes(item.to))
+  return navItems.filter((item) => !['/configuracion', '/financiero', '/reportes'].includes(item.to))
+};
+
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -59,7 +65,7 @@ export default function Layout() {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map((item) => {
+          {getNavItemsForRole(user?.role).map((item) => {
             const isActive =
               item.to === "/"
                 ? location.pathname === "/"

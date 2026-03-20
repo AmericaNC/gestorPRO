@@ -21,6 +21,15 @@ const supabaseAuth = createClient(
 
 export default async function handler(req, res) {
 
+  // CORS para llamadas desde http://localhost:5173 u otros orígenes
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
   console.log("METHOD:", req.method)
 
   const { method } = req
