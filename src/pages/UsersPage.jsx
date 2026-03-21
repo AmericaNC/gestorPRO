@@ -1,47 +1,67 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { apiUrl } from '../lib/apiClient'
-
-const API_USERS_URL = apiUrl('/api/users')
 
 export default function UsersPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('lector')
   const [status, setStatus] = useState(null)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const cargarUsuarios = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, email, rol')
+      .order('email', { ascending: true })
+
+    if (error) {
+      setStatus({ type: 'error', message: `Error cargando usuarios: ${error.message}` })
+      setUsers([])
+    } else {
+      setUsers(data || [])
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    cargarUsuarios()
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setStatus({ type: 'info', message: 'Creando usuario...' })
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
-    if (!token) {
-      setStatus({ type: 'error', message: 'No hay token de sesión activo.' })
-      return
-    }
-
     try {
-      const response = await fetch(API_USERS_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, role }),
+      // Crea el usuario en Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
       })
 
-      const result = await response.json()
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al crear usuario')
+      if (signUpError) throw signUpError
+
+      const newUser = signUpData.user
+      if (!newUser) throw new Error('No se pudo crear el usuario en Auth')
+
+      // Inserta el rol en la tabla usuarios
+      const { error: insertError } = await supabase
+        .from('usuarios')
+        .insert({ id: newUser.id, email: newUser.email, rol: role })
+
+      if (insertError) {
+        throw insertError
       }
 
       setStatus({ type: 'success', message: 'Usuario creado correctamente' })
       setEmail('')
       setPassword('')
       setRole('lector')
+      cargarUsuarios()
     } catch (err) {
-      setStatus({ type: 'error', message: err.message })
+      setStatus({ type: 'error', message: err.message || 'Error al crear usuario' })
     }
   }
 
@@ -74,6 +94,36 @@ export default function UsersPage() {
           {status.message}
         </p>
       )}
+
+      <div style={{ marginTop: 24 }}>
+        <h2>Usuarios registrados</h2>
+        {loading ? (
+          <p>Cargando usuarios...</p>
+        ) : (
+          <table style={{ width: '100%', marginTop: 10, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: 6 }}>Email</th>
+                <th style={{ textAlign: 'left', padding: 6 }}>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={2} style={{ padding: 6 }}>No hay usuarios registrados.</td>
+                </tr>
+              ) : (
+                users.map((u) => (
+                  <tr key={u.id}>
+                    <td style={{ padding: 6 }}>{u.email}</td>
+                    <td style={{ padding: 6 }}>{u.rol}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   )
 }

@@ -3,21 +3,39 @@ import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext(null)
 
-const DEFAULT_ADMIN_EMAILS = [
-  'usuario.prueba@gmail.com',
-]
+const DEV_ADMIN_EMAILS = ['usuario.prueba@gmail.com']
 
-function normalizeUser(user) {
-  if (!user) return null
+async function getRolFromDB(uid, email) {
+  if (!uid) return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
 
-  const metadataRole = user.user_metadata?.role
-  const email = user.email?.toLowerCase()
-  const isDevAdmin = DEFAULT_ADMIN_EMAILS.includes(email)
+  try {
+    // Timeout de 5s para que nunca se quede colgado
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 5000)
+    )
 
-  return {
-    ...user,
-    role: metadataRole || (isDevAdmin ? 'admin' : 'lector'),
+    const query = supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('id', uid)
+      .single()
+
+    const { data, error } = await Promise.race([query, timeout])
+
+    if (error || !data?.rol) {
+      return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
+    }
+
+    return data.rol
+  } catch {
+    return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
   }
+}
+
+async function buildUser(user) {
+  if (!user) return null
+  const role = await getRolFromDB(user.id, user.email)
+  return { ...user, role }
 }
 
 export function AuthProvider({ children }) {
@@ -26,40 +44,36 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    // Verificar sesión actual al cargar
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(normalizeUser(session?.user ?? null))
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
+    let mounted = true
 
-    checkSession()
-
-    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(normalizeUser(session?.user ?? null))
+      async (event, session) => {
+        try {
+          console.log('Auth event:', event, session?.user?.email) // 👈 para debug
+          const enrichedUser = await buildUser(session?.user ?? null)
+          if (mounted) setUser(enrichedUser)
+        } catch (err) {
+          console.error('onAuthStateChange error:', err)
+          if (mounted) setUser(null)
+        } finally {
+          if (mounted) setLoading(false)
+        }
       }
     )
 
-    return () => subscription?.unsubscribe()
+    return () => {
+      mounted = false
+      subscription?.unsubscribe()
+    }
   }, [])
 
   const login = async (email, password) => {
     try {
       setError(null)
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw signInError
-      setUser(normalizeUser(data.user))
+      const enrichedUser = await buildUser(data.user)
+      setUser(enrichedUser)
       return { success: true }
     } catch (err) {
       setError(err.message)
@@ -67,15 +81,20 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const signup = async (email, password) => {
+  const signup = async (email, password, rol = 'lector') => {
     try {
       setError(null)
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-
+      const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
       if (signUpError) throw signUpError
+
+      if (data.user) {
+        const { error: insertError } = await supabase
+          .from('usuarios')
+          .insert([{ id: data.user.id, email: data.user.email, rol }])
+
+        if (insertError) console.warn('Error al insertar usuario:', insertError.message)
+      }
+
       return { success: true, data }
     } catch (err) {
       setError(err.message)
@@ -103,8 +122,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de AuthProvider')
-  }
+  if (!context) throw new Error('useAuth debe ser usado dentro de AuthProvider')
   return context
 }

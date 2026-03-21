@@ -15,16 +15,11 @@ export default function RoleRoute({ children, allowedRoles = [] }) {
     )
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
+  if (!user) return <Navigate to="/login" replace />
 
-  const devAdminEmails = ['usuario.prueba@gmail.com']
-  const roleFromMeta = user.role || user.user_metadata?.role
-  const role = roleFromMeta || (devAdminEmails.includes(user.email?.toLowerCase()) ? 'admin' : 'lector')
-
-  if (!allowedRoles.includes(role)) {
-    return <Navigate to="/" replace />
+  // El rol ya viene resuelto desde la tabla en AuthContext
+  if (!allowedRoles.includes(user.role)) {
+    return <Navigate to="/sin-permisos" replace />
   }
 
   return children

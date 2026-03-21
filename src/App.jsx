@@ -14,7 +14,14 @@ const Placeholder = ({ titulo }) => (
     <p className="page-subtitle">Sección en construcción...</p>
   </div>
 );
-
+const SinPermisos = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <h1 className="text-2xl font-bold text-red-500">Sin permisos</h1>
+      <p className="text-gray-600 mt-2">No tienes acceso a esta sección.</p>
+    </div>
+  </div>
+)
 export default function App() {
   return (
     <BrowserRouter>
@@ -30,13 +37,41 @@ export default function App() {
             }
           >
             <Route path="/" element={<Placeholder titulo="Dashboard" />} />
-            <Route path="/locales" element={<LocalesPage />} />
-            <Route path="/contratos" element={<Placeholder titulo="Contratos" />} />
-            <Route path="/expedientes" element={<Placeholder titulo="Expedientes" />} />
-            <Route path="/incrementos" element={<Placeholder titulo="Incrementos" />} />
-            <Route path="/financiero" element={<Placeholder titulo="Financiero" />} />
-            <Route path="/arrendatarios" element={<Placeholder titulo="Arrendatarios" />} />
-            <Route path="/reportes" element={<Placeholder titulo="Reportes" />} />
+            <Route path="/locales" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <LocalesPage />
+              </RoleRoute>
+            } />
+            <Route path="/contratos" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <Placeholder titulo="Contratos" />
+              </RoleRoute>
+            } />
+            <Route path="/expedientes" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <Placeholder titulo="Expedientes" />
+              </RoleRoute>
+            } />
+            <Route path="/incrementos" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <Placeholder titulo="Incrementos" />
+              </RoleRoute>
+            } />
+            <Route path="/financiero" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <Placeholder titulo="Financiero" />
+              </RoleRoute>
+            } />
+            <Route path="/arrendatarios" element={
+              <RoleRoute allowedRoles={["admin", "gestor"]}>
+                <Placeholder titulo="Arrendatarios" />
+              </RoleRoute>
+            } />
+            <Route path="/reportes" element={
+              <RoleRoute allowedRoles={["admin", "lector", "gestor"]}>
+                <Placeholder titulo="Reportes" />
+              </RoleRoute>
+            } />
             <Route path="/configuracion" element={
               <RoleRoute allowedRoles={["admin"]}>
                 <UsersPage />
@@ -48,7 +83,7 @@ export default function App() {
               </RoleRoute>
             } />
           </Route>
-
+          <Route path="/sin-permisos" element={<SinPermisos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

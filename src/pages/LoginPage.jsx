@@ -19,18 +19,23 @@ export default function LoginPage() {
     setErrorMsg("")
     setIsLoading(true)
 
-    const result = await login(email, password)
+    try {
+      const result = await login(email, password)
 
-    if (result.success) {
-      if (rememberMe) {
-        localStorage.setItem("rememberMe", "true")
+      if (result.success) {
+        if (rememberMe) {
+          localStorage.setItem("rememberMe", "true")
+        }
+        navigate("/")
+      } else {
+        setErrorMsg(result.error || "Error al iniciar sesión")
       }
-      navigate("/")
-    } else {
-      setErrorMsg(result.error || "Error al iniciar sesión")
+    } catch (err) {
+      setErrorMsg("Error inesperado al iniciar sesión")
+      console.error(err)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   return (

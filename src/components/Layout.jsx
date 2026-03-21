@@ -18,9 +18,22 @@ const navItems = [
 
 const getNavItemsForRole = (role) => {
   if (role === 'admin') return navItems
-  if (role === 'gestor') return navItems.filter((item) => !['/configuracion'].includes(item.to))
-  return navItems.filter((item) => !['/configuracion', '/financiero', '/reportes'].includes(item.to))
-};
+
+  if (role === 'gestor') return navItems.filter((item) =>
+    !['/configuracion'].includes(item.to)
+  )
+
+  // lector: solo dashboard y reportes
+  if (role === 'lector') return navItems.filter((item) =>
+    ['/', '/reportes'].includes(item.to)
+  )
+
+  return [] // si no tiene rol reconocido, no muestra nada
+}
+
+
+
+
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
