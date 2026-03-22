@@ -357,8 +357,8 @@ Presentación visual de información financiera y operativa.
 
 # 4. Reglas Globales del Sistema
 
-1. El sistema es monousuario.
-2. Toda validación crítica debe hacerse en backend.
+1. El sistema tiene 3 tipos de usuarios: administrador, gestr y lector
+2. Las validaciones se hacen en backend.
 3. La base de datos debe proteger integridad financiera.
 4. No se permite duplicidad de:
    - Local por número
@@ -366,4 +366,15 @@ Presentación visual de información financiera y operativa.
    - Contrato activo por local
 5. Los cálculos financieros deben realizarse preferentemente en la base de datos.
 
+# 4.1 Roles y usuarios
+- El sistema actualmente cuenta con tres roles diferenciados: admin, gestor, lector
+- /locales se puede acceder por admin y gestor 
+- /contratos se puede acceder por admin y gestor 
+- /expedientes se puede acceder por admin y gestor 
+- /incrementos se puede acceder por admin y gestor 
+- /financiero se puede acceder por admin y gestor 
+- /arrendatarios se puede acceder por admin y gestor 
+- /reportes se puede acceder por admin, gestor y lector
+- /configuracion se puede acceder sola y unicamente por admin 
 
+Es importante mantener la restriccion cuando se realice el consumo desde el fontend. Solo el usuario administrador puede crear otros usuarios.
