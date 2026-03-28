@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         try {
-          console.log('Auth event:', event, session?.user?.email) // 👈 para debug
+          console.log('Auth event:', event, session?.user?.email) 
           const enrichedUser = await buildUser(session?.user ?? null)
           if (mounted) setUser(enrichedUser)
         } catch (err) {

@@ -1,6 +1,17 @@
 # Gestión de Locales
 
-Este documento contiene los comandos de **PowerShell** necesarios para interactuar con la API. 
+Este documento contiene los comandos de **PowerShell** necesarios para interactuar con la API y correr el programa. 
+Lo que deje hecho fue basicamente el backend en forma de API, es necesario hacer un front quqe lo consuma. Hice el ejemplo en la tabla locales, pero hacen falta las demas secciones.
+
+```powershell
+cd gestionPRO
+npm run dev
+```
+
+Esto corre el cliente en localhost http://localhost:5173/
+
+
+### Para interactuar con la API desde command-line
 
 > **Nota Importante:** Reemplaza los valores de `id` y `$TOKEN` por los reales antes de ejecutar.
 Tambien considerar que el token AUTH obtenido despues de ejecutar el cliente tiene duracion de 1hr (Inspeccionar > Application > localStorage > http://localhost:5173)
@@ -13,8 +24,17 @@ Ejecuta esto al abrir tu terminal:
 ```powershell
 $TOKEN = "TU_TOKEN_AQUÍ"
 ```
-Las url cambian con los deploy, es conveniente redeployar y sustituir si es necesario.
+Las url cambian con los deploy, es conveniente redeployar y sustituir si es necesario. Los pasos para obtener el TOKEN de la API son los siguientes:
 
+Obtener la llave para haer las solicitudes (cambia mas o menos cada hora).
+
+![alt text](image.png)
+
+Ejemplo de uso de la API
+
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
 ## READ (Consultar locales)
 ```powershell
 Invoke-RestMethod -Method Get `
@@ -241,3 +261,7 @@ Invoke-RestMethod -Method Post -Uri "https://gestor-nez2fd8c2-fernandanevarez717
   -Body $bodyDelete
   ```
   ![Imagen de la soliitud](UpdatePagos-DeletePagos.png)
+
+## Pendiente
+* Realizar el consumo de la API desde componentes (como el componente de locales, no desde terminal pero aqui lo djo para referencias).
+* Realizar el diseño UX/UI.
