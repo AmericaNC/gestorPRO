@@ -85,7 +85,7 @@ export default function FinancieroPage() {
           <p style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#16a34a' }}>${totalPagado.toLocaleString()}</p>
         </div>
         <div style={{ padding: '16px', border: '1px solid #eee', borderRadius: '8px', flex: 1 }}>
-          <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>Pagos pendientes</p>
+          <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>Pagos completos pendientes</p>
           <p style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#dc2626' }}>{totalPendiente}</p>
         </div>
       </div>

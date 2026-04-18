@@ -11,6 +11,7 @@ export default function ContratosPage() {
   const [error, setError] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedContrato, setSelectedContrato] = useState(null);
+  const [enviando, setEnviando] = useState(null); // id del contrato que se está enviando
 
   const fetchContratos = async () => {
     setLoading(true);
@@ -43,9 +44,40 @@ export default function ContratosPage() {
     }
   };
 
+  const enviarAExpediente = async (contrato) => {
+    if (!window.confirm(`¿Enviar el contrato del local ${contrato.local_id} a Expedientes?`)) return;
+
+    setEnviando(contrato.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch(API_URL_GET, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ id: contrato.id, estatus: "vencido" })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Error al actualizar");
+
+      fetchContratos();
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setEnviando(null);
+    }
+  };
+
   useEffect(() => {
     fetchContratos();
   }, []);
+
+  // Solo mostramos contratos activos y en negociación en esta vista
+  const contratosActivos = contratos.filter(c => c.estatus !== 'vencido' && c.estatus !== 'cancelado');
 
   return (
     <div style={{ padding: '20px' }}>
@@ -56,12 +88,12 @@ export default function ContratosPage() {
         </button>
       </div>
 
-      {loading ? <p>Cargando...</p> : error ? <p style={{color: 'red'}}>{error}</p> : (
+      {loading ? <p>Cargando...</p> : error ? <p style={{ color: 'red' }}>{error}</p> : (
         <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #eee' }}>
-              <th>Local ID</th>
-              <th>Inquilino ID</th>
+              <th>Local</th>
+              <th>Arrendatario</th>
               <th>Fecha Inicio</th>
               <th>Fecha Vencimiento</th>
               <th>Renta</th>
@@ -70,16 +102,27 @@ export default function ContratosPage() {
             </tr>
           </thead>
           <tbody>
-            {contratos.map((c) => (
+            {contratosActivos.map((c) => (
               <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td>{c.local_id}</td>
-                <td>{c.inquilino_id}</td>
+                <td>{c.locales?.numero ?? c.local_id}</td>
+                <td>{c.arrendatarios?.nombre ?? c.inquilino_id}</td>
                 <td>{c.fecha_inicio}</td>
                 <td>{c.fecha_vencimiento}</td>
                 <td>${c.renta}</td>
                 <td>{c.estatus}</td>
-                <td>
-                  <button onClick={() => { setSelectedContrato(c); setDrawerOpen(true); }}>Editar</button>
+                <td style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => { setSelectedContrato(c); setDrawerOpen(true); }}>
+                    Editar
+                  </button>
+                  {c.estatus === 'activo' && (
+                    <button
+                      onClick={() => enviarAExpediente(c)}
+                      disabled={enviando === c.id}
+                      style={{ color: '#dc2626' }}
+                    >
+                      {enviando === c.id ? "Enviando..." : "→ Expediente"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -87,11 +130,11 @@ export default function ContratosPage() {
         </table>
       )}
 
-      <ContratoDrawer 
-        open={drawerOpen} 
-        onClose={() => setDrawerOpen(false)} 
+      <ContratoDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         contrato={selectedContrato}
-        onSaved={fetchContratos} 
+        onSaved={fetchContratos}
       />
     </div>
   );

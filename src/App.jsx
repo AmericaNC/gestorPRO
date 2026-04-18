@@ -9,6 +9,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 import ArrendatariosPage from "./pages/ArrendatarioPage";
 import FinancieroPage from "./pages/FinancieroPage";
+import ExpedientesPage from "./pages/ExpedientesPage";
 import "./App.css";
 
 const Placeholder = ({ titulo }) => (
@@ -52,7 +53,7 @@ export default function App() {
             } />
             <Route path="/expedientes" element={
               <RoleRoute allowedRoles={["admin", "gestor"]}>
-                <Placeholder titulo="Expedientes" />
+                <ExpedientesPage />
               </RoleRoute>
             } />
             <Route path="/incrementos" element={
