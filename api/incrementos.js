@@ -3,13 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const supabaseAuth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-// Replica la lógica del CASE de la BD para recalcular estado
-function calcularEstado(monto_pagado, monto_esperado) {
-  if (monto_pagado >= monto_esperado) return 'al_dia';
-  if (monto_pagado > 0)              return 'parcial';
-  return 'pendiente';
-}
-
 export default async function handler(req, res) {
   const { method } = req;
 
@@ -55,36 +48,22 @@ export default async function handler(req, res) {
       const hoy = new Date().toISOString().slice(0, 7);
       let pagosActualizados = 0;
 
-      // 2. Por cada contrato, traer pagos pendientes y actualizarlos uno a uno
       for (const contrato of contratos) {
         const nuevaRenta = Math.round(contrato.renta * factor * 100) / 100;
 
-        // Traer pagos pendientes desde hoy en adelante
-        const { data: pagosActuales, error: fetchError } = await supabase
+        // Solo actualizar monto_esperado — la BD recalcula estado automáticamente
+        const { data: pagosData, error: pagosError } = await supabase
           .from('pagos')
-          .select('id, monto_pagado')
+          .update({ monto_esperado: nuevaRenta })
           .eq('contrato_id', contrato.id)
           .eq('estado', 'pendiente')
-          .gte('periodo', hoy);
+          .gte('periodo', hoy)
+          .select('id');
 
-        if (fetchError) throw fetchError;
-        if (!pagosActuales || pagosActuales.length === 0) continue;
+        if (pagosError) throw pagosError;
+        pagosActualizados += pagosData?.length || 0;
 
-        // Actualizar cada pago con nuevo monto_esperado y estado recalculado
-        for (const pago of pagosActuales) {
-          const montoPagado = Number(pago.monto_pagado || 0);
-          const nuevoEstado = calcularEstado(montoPagado, nuevaRenta);
-
-          const { error: pagoError } = await supabase
-            .from('pagos')
-            .update({ monto_esperado: nuevaRenta, estado: nuevoEstado })
-            .eq('id', pago.id);
-
-          if (pagoError) throw pagoError;
-          pagosActualizados++;
-        }
-
-        // 3. Actualizar renta del contrato
+        // Actualizar renta del contrato
         const { error: contratoError } = await supabase
           .from('contratos')
           .update({ renta: nuevaRenta })
@@ -93,7 +72,7 @@ export default async function handler(req, res) {
         if (contratoError) throw contratoError;
       }
 
-      // 4. Guardar historial
+      // Guardar historial
       const { data: historial, error: historialError } = await supabase
         .from('incrementos')
         .insert([{
