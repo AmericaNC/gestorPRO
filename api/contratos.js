@@ -23,6 +23,14 @@ function generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimie
   return pagos;
 }
 
+async function actualizarEstatusLocal(local_id, estatus) {
+  const { error } = await supabase
+    .from('locales')
+    .update({ estatus })
+    .eq('numero', local_id); // local_id en contratos = locales.numero
+  if (error) console.error(`Error actualizando estatus local ${local_id}:`, error.message);
+}
+
 export default async function handler(req, res) {
   const { method } = req;
 
@@ -37,6 +45,7 @@ export default async function handler(req, res) {
       }
 
       case 'POST': {
+        // BORRADO
         if (req.body.action === 'delete') {
           const { error: delError } = await supabase
             .from('contratos')
@@ -46,6 +55,7 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, message: 'Contrato eliminado' });
         }
 
+        // CREACIÓN
         const { data: postData, error: postError } = await supabase
           .from('contratos')
           .insert([req.body])
@@ -54,8 +64,12 @@ export default async function handler(req, res) {
         if (postError) throw postError;
 
         const { id: contrato_id, local_id, renta, fecha_inicio, fecha_vencimiento } = postData;
-        const pagos = generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimiento);
 
+        // Marcar local como rentado
+        await actualizarEstatusLocal(local_id, 'rentado');
+
+        // Generar pagos automáticamente
+        const pagos = generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimiento);
         const { error: pagosError } = await supabase.from('pagos').insert(pagos);
         if (pagosError) console.error('Error generando pagos:', pagosError.message);
 
@@ -73,8 +87,17 @@ export default async function handler(req, res) {
           .single();
         if (putError) throw putError;
 
-        // Si cambia la renta, actualizar pagos futuros pendientes
-        // Solo monto_esperado — la BD recalcula estado y diferencia automáticamente
+        // Si el contrato pasa a vencido o cancelado → liberar el local
+        if (updateData.estatus === 'vencido' || updateData.estatus === 'cancelado') {
+          await actualizarEstatusLocal(putData.local_id, 'desocupado');
+        }
+
+        // Si se reactiva un contrato → volver a marcar el local como rentado
+        if (updateData.estatus === 'activo') {
+          await actualizarEstatusLocal(putData.local_id, 'rentado');
+        }
+
+        // Si cambia la renta → actualizar pagos futuros pendientes
         if (updateData.renta) {
           const hoy = new Date().toISOString().slice(0, 7);
           const { error: updatePagosError } = await supabase
@@ -83,7 +106,6 @@ export default async function handler(req, res) {
             .eq('contrato_id', id)
             .eq('estado', 'pendiente')
             .gte('periodo', hoy);
-
           if (updatePagosError) console.error('Error actualizando pagos futuros:', updatePagosError.message);
         }
 
