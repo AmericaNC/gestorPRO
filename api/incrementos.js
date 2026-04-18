@@ -10,6 +10,15 @@ function calcularEstado(monto_pagado, monto_esperado) {
   return 'pendiente';
 }
 
+function normalizarPeriodo(periodo) {
+  if (!periodo) return null;
+  const match = periodo.toString().match(/^(\d{4})-(\d{1,2})$/);
+  if (!match) return null;
+  const año = match[1];
+  const mes = String(Number(match[2])).padStart(2, '0');
+  return `${año}-${mes}`;
+}
+
 export default async function handler(req, res) {
   const { method } = req;
 
@@ -59,19 +68,23 @@ export default async function handler(req, res) {
       for (const contrato of contratos) {
         const nuevaRenta = Math.round(contrato.renta * factor * 100) / 100;
 
-        // Traer pagos pendientes desde hoy en adelante
+        // Traer pagos pendientes o parciales desde hoy en adelante
         const { data: pagosActuales, error: fetchError } = await supabase
           .from('pagos')
-          .select('id, monto_pagado')
+          .select('id, monto_pagado, periodo')
           .eq('contrato_id', contrato.id)
-          .eq('estado', 'pendiente')
-          .gte('periodo', hoy);
+          .in('estado', ['pendiente', 'parcial']);
 
         if (fetchError) throw fetchError;
-        if (!pagosActuales || pagosActuales.length === 0) continue;
+
+        const pagosFiltrados = (pagosActuales || [])
+          .map(pago => ({ ...pago, periodo: normalizarPeriodo(pago.periodo) }))
+          .filter(pago => pago.periodo && pago.periodo >= hoy);
+
+        if (pagosFiltrados.length === 0) continue;
 
         // Actualizar cada pago con nuevo monto_esperado y estado recalculado
-        for (const pago of pagosActuales) {
+        for (const pago of pagosFiltrados) {
           const montoPagado = Number(pago.monto_pagado || 0);
           const nuevoEstado = calcularEstado(montoPagado, nuevaRenta);
 
