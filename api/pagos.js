@@ -7,38 +7,48 @@ export default async function handler(req, res) {
 
   try {
     switch (method) {
-      case 'GET':
-        const { data: getData, error: getError } = await supabase
+      case 'GET': {
+        const { contrato_id, estado, periodo } = req.query;
+
+        let query = supabase
           .from('pagos')
-          .select('*, contratos(inquilino_id), locales(numero)');
+          .select('*, contratos(inquilino_id, arrendatarios(nombre)), locales(numero)')
+          .order('periodo', { ascending: true });
+
+        if (contrato_id) query = query.eq('contrato_id', contrato_id);
+        if (estado)      query = query.eq('estado', estado);
+        if (periodo)     query = query.eq('periodo', periodo);
+
+        const { data: getData, error: getError } = await query;
         if (getError) throw getError;
         return res.status(200).json({ success: true, data: getData });
+      }
 
-      case 'POST':
+      case 'POST': {
+        // BORRADO
         if (req.body.action === 'delete') {
           const { error: delError } = await supabase
             .from('pagos')
             .delete()
             .eq('id', req.body.id);
           if (delError) throw delError;
-          return res.status(200).json({ success: true, message: "Pago eliminado" });
+          return res.status(200).json({ success: true, message: 'Pago eliminado' });
         }
-        
-        // --- LIMPIEZA PARA COLUMNAS GENERADAS ---
-        const { diferencia, estado, ...datosParaInsertar } = req.body;
 
+        // CREACIÓN MANUAL
+        const { diferencia, estado, ...datosParaInsertar } = req.body;
         const { data: postData, error: postError } = await supabase
           .from('pagos')
           .insert([datosParaInsertar])
           .select();
-        
         if (postError) throw postError;
         return res.status(201).json({ success: true, data: postData });
+      }
 
-      case 'PUT':
+      case 'PUT': {
         const { id, ...updateData } = req.body;
-        
-        // También quitamos los campos generados aquí por si acaso
+
+        // Quitamos columnas generadas por la BD
         delete updateData.diferencia;
         delete updateData.estado;
 
@@ -47,9 +57,9 @@ export default async function handler(req, res) {
           .update(updateData)
           .eq('id', id)
           .select();
-        
         if (putError) throw putError;
         return res.status(200).json({ success: true, data: putData });
+      }
 
       default:
         res.setHeader('Allow', ['GET', 'POST', 'PUT']);
