@@ -17,7 +17,13 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
 
   useEffect(() => {
     if (open) {
-      setForm(local || { numero: "", metros_cuadrados: "", estatus: "desocupado", renta: "", mantenimiento_mensual: "" });
+      setForm(local || {
+        numero: "",
+        metros_cuadrados: "",
+        estatus: "desocupado",
+        renta: "",
+        mantenimiento_mensual: ""
+      });
       setError("");
     }
   }, [open, local]);
@@ -28,13 +34,13 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      // Payload ajustado a tus ejemplos de PowerShell
       const payload = {
         ...form,
         numero: Number(form.numero),
         metros_cuadrados: Number(form.metros_cuadrados),
         renta: Number(form.renta),
-        mantenimiento_mensual: Number(form.mantenimiento_mensual)
+        mantenimiento_mensual: Number(form.mantenimiento_mensual),
+        estatus: "desocupado" // siempre desocupado al crear/editar manualmente
       };
 
       const response = await fetch(API_URL_ACTION, {
@@ -63,20 +69,43 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
   return (
     <div className="drawer-container">
       <h2>{esEdicion ? "Editar Local" : "Nuevo Local"}</h2>
-      <input type="number" placeholder="Número" value={form.numero} onChange={e => setForm({...form, numero: e.target.value})} />
-      <input type="number" placeholder="Metros²" value={form.metros_cuadrados} onChange={e => setForm({...form, metros_cuadrados: e.target.value})} />
-      <select value={form.estatus} onChange={e => setForm({...form, estatus: e.target.value})}>
-        <option value="desocupado">Desocupado</option>
-        <option value="rentado">Rentado</option>
-        <option value="propuesta_activa">Propuesta Activa</option>
-      </select>
-      <input type="number" placeholder="Renta" value={form.renta} onChange={e => setForm({...form, renta: e.target.value})} />
-      <input type="number" placeholder="Mantenimiento" value={form.mantenimiento_mensual} onChange={e => setForm({...form, mantenimiento_mensual: e.target.value})} />
-      
-      {error && <p style={{color: 'red'}}>{error}</p>}
-      
+
+      <input
+        type="number"
+        placeholder="Número"
+        value={form.numero}
+        onChange={e => setForm({ ...form, numero: e.target.value })}
+      />
+
+      <input
+        type="number"
+        placeholder="Metros²"
+        value={form.metros_cuadrados}
+        onChange={e => setForm({ ...form, metros_cuadrados: e.target.value })}
+      />
+
+      <input
+        type="number"
+        placeholder="Renta"
+        value={form.renta}
+        onChange={e => setForm({ ...form, renta: e.target.value })}
+      />
+
+      <input
+        type="number"
+        placeholder="Mantenimiento mensual"
+        value={form.mantenimiento_mensual}
+        onChange={e => setForm({ ...form, mantenimiento_mensual: e.target.value })}
+      />
+
+      {/* Estatus se maneja automáticamente via contratos, no se expone al usuario */}
+
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
       <button onClick={onClose}>Cancelar</button>
-      <button onClick={handleSubmit} disabled={loading}>{loading ? "Guardando..." : "Guardar"}</button>
+      <button onClick={handleSubmit} disabled={loading}>
+        {loading ? "Guardando..." : "Guardar"}
+      </button>
     </div>
   );
 }

@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { apiUrl } from "../lib/apiClient";
 
-const API_URL_ACTION = apiUrl('/api/contratos');
-const API_URL_LOCALES = apiUrl('/api/locales');
+const API_URL_ACTION      = apiUrl('/api/contratos');
+const API_URL_LOCALES     = apiUrl('/api/locales');
 const API_URL_ARRENDATARIOS = apiUrl('/api/arrendatarios');
 
 export default function ContratoDrawer({ open, onClose, onSaved, contrato = null }) {
   const esEdicion = contrato !== null;
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [locales, setLocales] = useState([]);
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState("");
+  const [locales, setLocales]             = useState([]);
   const [arrendatarios, setArrendatarios] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [form, setForm] = useState({
@@ -23,7 +23,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
     contrato_pdf_url: ""
   });
 
-  // Cargar locales y arrendatarios cuando se abre el drawer
   useEffect(() => {
     if (open) {
       fetchOptions();
@@ -58,32 +57,37 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      // Fetch locales
-      const localesResponse = await fetch(API_URL_LOCALES, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      const localesData = await localesResponse.json();
-      setLocales(localesData.data || []);
+      const [localesRes, arrendRes] = await Promise.all([
+        fetch(API_URL_LOCALES, {
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
+        }),
+        fetch(API_URL_ARRENDATARIOS, {
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
+        })
+      ]);
 
-      // Fetch arrendatarios
-      const arrendResponse = await fetch(API_URL_ARRENDATARIOS, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-      const arrendData = await arrendResponse.json();
+      const [localesData, arrendData] = await Promise.all([
+        localesRes.json(),
+        arrendRes.json()
+      ]);
+
+      setLocales(localesData.data || []);
       setArrendatarios(arrendData.data || []);
     } catch (err) {
       setError("Error cargando opciones: " + err.message);
     } finally {
       setLoadingOptions(false);
     }
+  };
+
+  // Cuando cambia el local, autocompletar la renta
+  const handleLocalChange = (numeroLocal) => {
+    const localSeleccionado = locales.find(l => String(l.numero) === String(numeroLocal));
+    setForm(prev => ({
+      ...prev,
+      local_id: numeroLocal,
+      renta: localSeleccionado ? String(localSeleccionado.renta) : prev.renta
+    }));
   };
 
   const handleSubmit = async () => {
@@ -102,7 +106,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
         contrato_pdf_url: form.contrato_pdf_url || null
       };
 
-      // Si es edición, agregar el id
       if (esEdicion) {
         payload.id = contrato.id;
       }
@@ -138,60 +141,74 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
         <p>Cargando opciones...</p>
       ) : (
         <>
-          <select value={form.local_id} onChange={e => setForm({...form, local_id: e.target.value})}>
+          <select
+            value={form.local_id}
+            onChange={e => handleLocalChange(e.target.value)}
+          >
             <option value="">Selecciona un Local</option>
             {locales.map(local => (
-              <option key={local.id} value={local.numero}>{local.numero}</option>
+              <option key={local.id} value={local.numero}>
+                Local {local.numero} — ${Number(local.renta).toLocaleString()}/mes
+              </option>
             ))}
           </select>
 
-          <select value={form.inquilino_id} onChange={e => setForm({...form, inquilino_id: e.target.value})}>
+          <select
+            value={form.inquilino_id}
+            onChange={e => setForm({ ...form, inquilino_id: e.target.value })}
+          >
             <option value="">Selecciona un Arrendatario</option>
-            {arrendatarios.map(arrendatario => (
-              <option key={arrendatario.id} value={arrendatario.id}>{arrendatario.nombre}</option>
+            {arrendatarios.map(a => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
           </select>
 
-          <input 
-            type="date" 
-            placeholder="Fecha Inicio" 
-            value={form.fecha_inicio} 
-            onChange={e => setForm({...form, fecha_inicio: e.target.value})} 
+          <input
+            type="date"
+            placeholder="Fecha Inicio"
+            value={form.fecha_inicio}
+            onChange={e => setForm({ ...form, fecha_inicio: e.target.value })}
           />
 
-          <input 
-            type="date" 
-            placeholder="Fecha Vencimiento" 
-            value={form.fecha_vencimiento} 
-            onChange={e => setForm({...form, fecha_vencimiento: e.target.value})} 
+          <input
+            type="date"
+            placeholder="Fecha Vencimiento"
+            value={form.fecha_vencimiento}
+            onChange={e => setForm({ ...form, fecha_vencimiento: e.target.value })}
           />
 
-          <input 
-            type="number" 
-            placeholder="Renta" 
-            value={form.renta} 
-            onChange={e => setForm({...form, renta: e.target.value})} 
+          {/* Renta autocompletada desde el local, editable si se necesita ajustar */}
+          <input
+            type="number"
+            placeholder="Renta"
+            value={form.renta}
+            onChange={e => setForm({ ...form, renta: e.target.value })}
           />
 
-          <select value={form.estatus} onChange={e => setForm({...form, estatus: e.target.value})}>
+          <select
+            value={form.estatus}
+            onChange={e => setForm({ ...form, estatus: e.target.value })}
+          >
             <option value="activo">Activo</option>
             <option value="vencido">Vencido</option>
             <option value="cancelado">Cancelado</option>
           </select>
 
-          <input 
-            type="text" 
-            placeholder="URL PDF del Contrato (opcional)" 
-            value={form.contrato_pdf_url} 
-            onChange={e => setForm({...form, contrato_pdf_url: e.target.value})} 
+          <input
+            type="text"
+            placeholder="URL PDF del Contrato (opcional)"
+            value={form.contrato_pdf_url}
+            onChange={e => setForm({ ...form, contrato_pdf_url: e.target.value })}
           />
         </>
       )}
 
-      {error && <p style={{color: 'red'}}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
       <button onClick={onClose}>Cancelar</button>
-      <button onClick={handleSubmit} disabled={loading || loadingOptions}>{loading ? "Guardando..." : "Guardar"}</button>
+      <button onClick={handleSubmit} disabled={loading || loadingOptions}>
+        {loading ? "Guardando..." : "Guardar"}
+      </button>
     </div>
   );
 }
