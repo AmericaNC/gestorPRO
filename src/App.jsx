@@ -2,10 +2,12 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import LocalesPage from "./pages/LocalesPage";
+import ContratosPage from "./pages/ContratosPage";
 import UsersPage from "./pages/UsersPage";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
+import ArrendatariosPage from "./pages/ArrendatarioPage";
 import "./App.css";
 
 const Placeholder = ({ titulo }) => (
@@ -44,7 +46,7 @@ export default function App() {
             } />
             <Route path="/contratos" element={
               <RoleRoute allowedRoles={["admin", "gestor"]}>
-                <Placeholder titulo="Contratos" />
+                <ContratosPage />
               </RoleRoute>
             } />
             <Route path="/expedientes" element={
@@ -64,7 +66,7 @@ export default function App() {
             } />
             <Route path="/arrendatarios" element={
               <RoleRoute allowedRoles={["admin", "gestor"]}>
-                <Placeholder titulo="Arrendatarios" />
+    <ArrendatariosPage /> 
               </RoleRoute>
             } />
             <Route path="/reportes" element={

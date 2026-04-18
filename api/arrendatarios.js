@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     if (method === 'GET') {
       const { data, error } = await supabaseAdmin
         .from('arrendatarios')
-        .select('*, locales(numero)') // Trae también el número del local asociado
+        .select('*, locales(numero)')
         .order('nombre')
 
       if (error) throw error
@@ -35,7 +35,6 @@ export default async function handler(req, res) {
 
       // LÓGICA DE BORRADO CON VALIDACIÓN DE CONTRATOS
       if (action === 'delete' && id) {
-        // Verificar si tiene contratos activos antes de borrar
         const { count, error: countError } = await supabaseAdmin
           .from('contratos')
           .select('*', { count: 'exact', head: true })
@@ -53,12 +52,18 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: 'Arrendatario eliminado' })
       }
 
-      // LÓGICA DE CREACIÓN
-      if (!nombre || !local_id) return res.status(400).json({ error: 'Nombre y local_id son requeridos' })
+      // LÓGICA DE CREACIÓN — local_id es opcional, se asigna después via contrato
+      if (!nombre) return res.status(400).json({ error: 'Nombre es requerido' })
 
       const { data, error } = await supabaseAdmin
         .from('arrendatarios')
-        .insert([{ nombre, local_id: Number(local_id), email, telefono, estado: estado || 'activo' }])
+        .insert([{ 
+          nombre, 
+          local_id: local_id ? Number(local_id) : null, 
+          email, 
+          telefono, 
+          estado: estado || 'pendiente' 
+        }])
         .select().single()
 
       if (error) throw error
@@ -74,7 +79,7 @@ export default async function handler(req, res) {
 
       const { data, error } = await supabaseAdmin
         .from('arrendatarios')
-        .update({ nombre, local_id, email, telefono, estado })
+        .update({ nombre, local_id: local_id ? Number(local_id) : null, email, telefono, estado })
         .eq('id', id)
         .select().single()
 
