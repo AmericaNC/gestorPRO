@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         // Generar pagos automáticamente
         const pagos = generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimiento);
         const { error: pagosError } = await supabase.from('pagos').insert(pagos);
-        if (pagosError) throw new Error(`Error generando pagos: ${pagosError.message}`);
+        if (pagosError) console.error('Error generando pagos:', pagosError.message);
 
         return res.status(201).json({ success: true, data: postData });
       }
