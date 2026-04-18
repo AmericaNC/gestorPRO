@@ -177,13 +177,14 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
             onChange={e => setForm({ ...form, fecha_vencimiento: e.target.value })}
           />
 
-          {/* Renta autocompletada desde el local, editable si se necesita ajustar */}
-          <input
-            type="number"
-            placeholder="Renta"
-            value={form.renta}
-            onChange={e => setForm({ ...form, renta: e.target.value })}
-          />
+         {/* Renta heredada del local — solo lectura */}
+<input
+  type="number"
+  placeholder="Renta"
+  value={form.renta}
+  disabled={true}
+  style={{ opacity: 0.6, cursor: 'not-allowed' }}
+/>
 
           <select
             value={form.estatus}
