@@ -11,6 +11,8 @@ import ArrendatariosPage from "./pages/ArrendatarioPage";
 import FinancieroPage from "./pages/FinancieroPage";
 import ExpedientesPage from "./pages/ExpedientesPage";
 import IncrementosPage from "./pages/IncrementosPage";
+import DashboardPage from "./pages/DashboardPage";
+import ReportesPage from "./pages/ReportesPage";
 import "./App.css";
 
 const Placeholder = ({ titulo }) => (
@@ -41,7 +43,7 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Placeholder titulo="Dashboard" />} />
+            <Route path="/" element={<DashboardPage />} />
             <Route path="/locales" element={
               <RoleRoute allowedRoles={["admin", "gestor"]}>
                 <LocalesPage />
@@ -74,7 +76,7 @@ export default function App() {
             } />
             <Route path="/reportes" element={
               <RoleRoute allowedRoles={["admin", "lector", "gestor"]}>
-                <Placeholder titulo="Reportes" />
+                <ReportesPage />
               </RoleRoute>
             } />
             <Route path="/configuracion" element={
