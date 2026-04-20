@@ -44,10 +44,10 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
 
       const payload = {
         nombre: form.nombre,
+        local_id: form.local_id ? Number(form.local_id) : 1,
         email: form.email || null,
         telefono: form.telefono || null,
         estado: form.estado
-        // local_id se asigna a través del contrato, no aquí
       };
 
       if (esEdicion) {

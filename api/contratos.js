@@ -1,22 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente ADMIN (para operaciones de base de datos)
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Cliente AUTH (para validar tokens de usuario)
 const supabaseAuth = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Genera un registro de pago por cada mes entre fecha_inicio y fecha_vencimiento.
- */
 function generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimiento) {
   const pagos = [];
   const fin = new Date(fecha_vencimiento);
@@ -38,10 +31,6 @@ function generarPagos(contrato_id, local_id, renta, fecha_inicio, fecha_vencimie
   return pagos;
 }
 
-/**
- * Actualiza el estatus del local correspondiente.
- * Nota: local_id en contratos corresponde a locales.numero
- */
 async function actualizarEstatusLocal(local_id, estatus) {
   const { error } = await supabaseAdmin
     .from('locales')
@@ -51,10 +40,6 @@ async function actualizarEstatusLocal(local_id, estatus) {
   if (error) console.error(`Error actualizando estatus local ${local_id}:`, error.message);
 }
 
-/**
- * Obtiene la renta actual del local por su numero.
- * La renta siempre viene del local — nunca del payload del contrato.
- */
 async function obtenerRentaDesdeLocal(local_id) {
   const { data, error } = await supabaseAdmin
     .from('locales')
@@ -69,10 +54,9 @@ async function obtenerRentaDesdeLocal(local_id) {
   return data?.renta ?? null;
 }
 
-// ─── Handler ─────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  // ─── CORS ──────────────────────────────────────────────────────────────────
+  // cors
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -161,16 +145,14 @@ export default async function handler(req, res) {
         return res.status(201).json({ success: true, data: postData });
       }
 
-      // ─── PUT ───────────────────────────────────────────────────────────────
+      // PUT
       case 'PUT': {
         const { id, ...updateData } = req.body;
 
         if (!id) return res.status(400).json({ error: 'ID es requerido' });
 
-        // Eliminar renta del payload — la renta solo se actualiza desde /api/locales
         delete updateData.renta;
 
-        // Obtener local_id del contrato actual para sincronizar la renta vigente
         const { data: contratoActual, error: contratoError } = await supabaseAdmin
           .from('contratos')
           .select('local_id')
@@ -179,7 +161,6 @@ export default async function handler(req, res) {
 
         if (contratoError) throw contratoError;
 
-        // Re-sincronizar renta desde el local al momento de editar el contrato
         const rentaVigente = await obtenerRentaDesdeLocal(contratoActual.local_id);
         if (rentaVigente !== null) {
           updateData.renta = rentaVigente;

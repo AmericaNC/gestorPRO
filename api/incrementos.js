@@ -32,7 +32,6 @@ export default async function handler(req, res) {
 
       const factor = 1 + Number(porcentaje) / 100;
 
-      // 1. Buscar contratos activos de los arrendatarios seleccionados
       const { data: contratos, error: contratosError } = await supabase
         .from('contratos')
         .select('id, local_id, renta, inquilino_id')
@@ -51,7 +50,6 @@ export default async function handler(req, res) {
       for (const contrato of contratos) {
         const nuevaRenta = Math.round(contrato.renta * factor * 100) / 100;
 
-        // Solo actualizar monto_esperado — la BD recalcula estado automáticamente
         const { data: pagosData, error: pagosError } = await supabase
           .from('pagos')
           .update({ monto_esperado: nuevaRenta })
@@ -63,7 +61,6 @@ export default async function handler(req, res) {
         if (pagosError) throw pagosError;
         pagosActualizados += pagosData?.length || 0;
 
-        // Actualizar renta del contrato
         const { error: contratoError } = await supabase
           .from('contratos')
           .update({ renta: nuevaRenta })
@@ -72,7 +69,6 @@ export default async function handler(req, res) {
         if (contratoError) throw contratoError;
       }
 
-      // Guardar historial
       const { data: historial, error: historialError } = await supabase
         .from('incrementos')
         .insert([{

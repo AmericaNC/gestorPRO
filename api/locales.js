@@ -1,26 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente ADMIN (para operaciones de base de datos)
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Cliente AUTH (para validar tokens de usuario)
 const supabaseAuth = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
 export default async function handler(req, res) {
-  // ─── CORS ────────────────────────────────────────────────────────────────────
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // ─── AUTH ────────────────────────────────────────────────────────────────────
+  // AUTH
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'No auth header' });
 
@@ -34,7 +32,7 @@ export default async function handler(req, res) {
   const { method } = req;
 
   try {
-    // ─── GET ──────────────────────────────────────────────────────────────────
+    // GET
     if (method === 'GET') {
       const { data, error } = await supabaseAdmin
         .from('locales')
@@ -45,11 +43,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data });
     }
 
-    // ─── POST ─────────────────────────────────────────────────────────────────
+    // POST
     if (method === 'POST') {
       const { id, action, numero, metros_cuadrados, estatus, renta, mantenimiento_mensual } = req.body;
 
-      // Borrado alternativo vía POST cuando DELETE falla
       if (action === 'delete' && id) {
         const { error: deleteError } = await supabaseAdmin
           .from('locales')
@@ -60,7 +57,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, message: 'Local eliminado correctamente' });
       }
 
-      // Creación normal
       if (!numero || !metros_cuadrados) {
         return res.status(400).json({ error: 'Número y metros cuadrados son requeridos' });
       }
@@ -81,7 +77,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data });
     }
 
-    // ─── PUT ──────────────────────────────────────────────────────────────────
+    // PUT
     if (method === 'PUT') {
       const { id, numero, metros_cuadrados, estatus, renta, mantenimiento_mensual } = req.body;
 
@@ -104,11 +100,9 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
-      // ── Propagar nueva renta a contratos activos y pagos futuros pendientes ──
       if (renta !== undefined) {
         const nuevaRenta = Number(renta);
 
-        // 1. Buscar contratos activos de este local
         const { data: contratosActivos, error: contratosError } = await supabaseAdmin
           .from('contratos')
           .select('id')
@@ -118,7 +112,6 @@ export default async function handler(req, res) {
         if (contratosError) {
           console.error('Error buscando contratos activos:', contratosError.message);
         } else if (contratosActivos?.length) {
-          // 2. Actualizar renta en contratos activos
           const { error: updateContratosError } = await supabaseAdmin
             .from('contratos')
             .update({ renta: nuevaRenta })
@@ -129,8 +122,7 @@ export default async function handler(req, res) {
             console.error('Error actualizando renta en contratos:', updateContratosError.message);
           }
 
-          // 3. Actualizar monto_esperado en pagos futuros pendientes
-          const hoy = new Date().toISOString().slice(0, 7); // formato YYYY-MM
+          const hoy = new Date().toISOString().slice(0, 7); 
           const contratoIds = contratosActivos.map(c => c.id);
 
           const { error: updatePagosError } = await supabaseAdmin
@@ -149,7 +141,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data });
     }
 
-    // ─── DELETE ───────────────────────────────────────────────────────────────
+    // DELETE
     if (method === 'DELETE') {
       const id = req.query.id || req.body.id;
 
@@ -164,7 +156,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Local eliminado' });
     }
 
-    // ─── MÉTODO NO PERMITIDO ──────────────────────────────────────────────────
+    
     res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
     return res.status(405).end(`Method ${method} Not Allowed`);
 

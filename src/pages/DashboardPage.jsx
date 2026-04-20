@@ -76,14 +76,11 @@ export default function DashboardPage() {
     })
     .sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento));
 
-  const vencidosSinExpedir = contratosVencidos; // ya vencidos pero no enviados a expediente
-
-  // ── Arrendatarios ──
+  const vencidosSinExpedir = contratosVencidos; 
   const arrAlDia    = arrendatarios.filter(a => a.estado === 'al_dia');
   const arrAtrasado = arrendatarios.filter(a => a.estado === 'atrasado');
   const arrPendiente = arrendatarios.filter(a => a.estado === 'pendiente');
 
-  // ── Pagos ──
   const periodoActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
   const pagosMesActual = pagos.filter(p => p.periodo === periodoActual);
   const pagosMesAlDia    = pagosMesActual.filter(p => p.estado === 'al_dia');
@@ -95,10 +92,8 @@ export default function DashboardPage() {
 
   const pagosConDiferenciaNegativa = pagos.filter(p => Number(p.diferencia || 0) < 0);
 
-  // ── Incrementos ──
-  const ultimoIncremento = incrementos[0] || null; // ya vienen ordenados por fecha desc
+  const ultimoIncremento = incrementos[0] || null; 
 
-  // ── Helpers ──
   const diasParaVencer = (fecha) => {
     const diff = new Date(fecha) - hoy;
     return Math.ceil(diff / (1000 * 60 * 60 * 24));

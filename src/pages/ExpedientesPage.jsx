@@ -16,9 +16,9 @@ export default function ExpedientesPage() {
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [restaurando, setRestaurando]   = useState(null);
-  const [expandido, setExpandido]       = useState(null);   // contrato.id expandido
-  const [pagosMap, setPagosMap]         = useState({});     // { contrato_id: pagos[] }
-  const [loadingPagos, setLoadingPagos] = useState(null);   // contrato_id cargando
+  const [expandido, setExpandido]       = useState(null);   
+  const [pagosMap, setPagosMap]         = useState({});     
+  const [loadingPagos, setLoadingPagos] = useState(null);   
 
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();

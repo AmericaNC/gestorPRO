@@ -25,7 +25,6 @@ export default async function handler(req, res) {
       }
 
       case 'POST': {
-        // BORRADO
         if (req.body.action === 'delete') {
           const { error: delError } = await supabase
             .from('pagos')
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, message: 'Pago eliminado' });
         }
 
-        // CREACIÓN MANUAL
         const { diferencia, estado, ...datosParaInsertar } = req.body;
         const { data: postData, error: postError } = await supabase
           .from('pagos')
@@ -48,7 +46,6 @@ export default async function handler(req, res) {
       case 'PUT': {
         const { id, ...updateData } = req.body;
 
-        // Quitamos columnas generadas por la BD
         delete updateData.diferencia;
         delete updateData.estado;
 
