@@ -114,6 +114,14 @@ export default function ContratosPage() {
                   <button onClick={() => { setSelectedContrato(c); setDrawerOpen(true); }}>
                     Editar
                   </button>
+                   {c.contrato_pdf_url && (
+    <button
+      onClick={() => window.open(c.contrato_pdf_url, "_blank")}
+      title="Ver contrato PDF"
+    >
+      Ver contrato
+    </button>
+  )}
                   {c.estatus === 'activo' && (
                     <button
                       onClick={() => enviarAExpediente(c)}

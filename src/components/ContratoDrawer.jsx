@@ -66,7 +66,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
       }
       setError("");
     }
-     console.log("contrato_pdf_url:", contrato.contrato_pdf_url);
   }, [open, contrato]);
 
   const resetUpload = () => {

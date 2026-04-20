@@ -37,44 +37,43 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
   }, [open, arrendatario]);
 
   const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+  setLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
-      const payload = {
-        nombre: form.nombre,
-        local_id: form.local_id ? Number(form.local_id) : 1,
-        email: form.email || null,
-        telefono: form.telefono || null,
-        estado: form.estado
-      };
+    const payload = {
+      nombre:   form.nombre,
+      local_id: null,          // ← se asigna desde el contrato, no desde aquí
+      email:    form.email    || null,
+      telefono: form.telefono || null,
+      estado:   form.estado
+    };
 
-      if (esEdicion) {
-        payload.id = arrendatario.id;
-      }
-
-      const response = await fetch(API_URL_ACTION, {
-        method: esEdicion ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Error en la operación");
-
-      onSaved();
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (esEdicion) {
+      payload.id = arrendatario.id;
     }
-  };
 
+    const response = await fetch(API_URL_ACTION, {
+      method: esEdicion ? 'PUT' : 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Error en la operación");
+
+    onSaved();
+    onClose();
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
   if (!open) return null;
 
   return (
