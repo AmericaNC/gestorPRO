@@ -97,8 +97,8 @@ export default async function handler(req, res) {
           nombre,
           local_id:  limpiarLocalId(local_id),  // ← FK-safe
           email:     email    || null,
-          telefono:  telefono || null,
-          estado:    estado   || 'pendiente'
+          telefono:  telefono || null
+          // ← El estado NO se actualiza desde aquí, se maneja automáticamente por pagos
         })
         .eq('id', id)
         .select()

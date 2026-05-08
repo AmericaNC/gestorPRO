@@ -30,6 +30,26 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Porcentaje e inquilinos son requeridos' });
       }
 
+      // Verificar que el usuario existe en la tabla usuarios
+      const { data: usuarioExistente } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      // Si no existe, crearlo automáticamente
+      if (!usuarioExistente) {
+        const { error: insertUserError } = await supabase
+          .from('usuarios')
+          .insert({
+            id: user.id,
+            email: user.email,
+            rol: 'gestor'
+          });
+        
+        if (insertUserError) throw insertUserError;
+      }
+
       const factor = 1 + Number(porcentaje) / 100;
 
       const { data: contratos, error: contratosError } = await supabase
@@ -46,6 +66,8 @@ export default async function handler(req, res) {
       const contrato_ids = contratos.map(c => c.id);
       const hoy = new Date().toISOString().slice(0, 7);
       let pagosActualizados = 0;
+
+      const rentasLocales = new Map();
 
       for (const contrato of contratos) {
         const nuevaRenta = Math.round(contrato.renta * factor * 100) / 100;
@@ -67,6 +89,19 @@ export default async function handler(req, res) {
           .eq('id', contrato.id);
 
         if (contratoError) throw contratoError;
+
+        if (contrato.local_id != null) {
+          rentasLocales.set(contrato.local_id, nuevaRenta);
+        }
+      }
+
+      for (const [local_id, nuevaRenta] of rentasLocales.entries()) {
+        const { error: localError } = await supabase
+          .from('locales')
+          .update({ renta: nuevaRenta })
+          .eq('numero', Number(local_id));
+
+        if (localError) throw localError;
       }
 
       const { data: historial, error: historialError } = await supabase

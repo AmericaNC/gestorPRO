@@ -11,8 +11,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
   const [form, setForm] = useState({
     nombre: "",
     email: "",
-    telefono: "",
-    estado: "pendiente"
+    telefono: ""
   });
 
   useEffect(() => {
@@ -21,15 +20,13 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         setForm({
           nombre: arrendatario.nombre || "",
           email: arrendatario.email || "",
-          telefono: arrendatario.telefono || "",
-          estado: arrendatario.estado || "pendiente"
+          telefono: arrendatario.telefono || ""
         });
       } else {
         setForm({
           nombre: "",
           email: "",
-          telefono: "",
-          estado: "pendiente"
+          telefono: ""
         });
       }
       setError("");
@@ -46,8 +43,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
       nombre:   form.nombre,
       local_id: null,          // ← se asigna desde el contrato, no desde aquí
       email:    form.email    || null,
-      telefono: form.telefono || null,
-      estado:   form.estado
+      telefono: form.telefono || null
     };
 
     if (esEdicion) {
@@ -100,15 +96,6 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         value={form.telefono}
         onChange={e => setForm({ ...form, telefono: e.target.value })}
       />
-
-      <select
-        value={form.estado}
-        onChange={e => setForm({ ...form, estado: e.target.value })}
-      >
-        <option value="pendiente">Pendiente</option>
-        <option value="al_dia">Al día</option>
-        <option value="atrasado">Atrasado</option>
-      </select>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 

@@ -54,6 +54,32 @@ async function obtenerRentaDesdeLocal(local_id) {
   return data?.renta ?? null;
 }
 
+async function actualizarArrendatarioLocal(inquilino_id, local_id) {
+  const { error } = await supabaseAdmin
+    .from('arrendatarios')
+    .update({ local_id: local_id ? Number(local_id) : null })
+    .eq('id', inquilino_id);
+
+  if (error) console.error(`Error actualizando arrendatario ${inquilino_id}:`, error.message);
+}
+
+async function sincronizarArrendatarioConContratoActivo(inquilino_id) {
+  const { data, error } = await supabaseAdmin
+    .from('contratos')
+    .select('local_id')
+    .eq('inquilino_id', inquilino_id)
+    .eq('estatus', 'activo')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error(`Error buscando contratos activos para arrendatario ${inquilino_id}:`, error.message);
+    return;
+  }
+
+  const local_id = data?.[0]?.local_id ?? null;
+  await actualizarArrendatarioLocal(inquilino_id, local_id);
+}
 
 export default async function handler(req, res) {
   // cors
@@ -134,8 +160,9 @@ export default async function handler(req, res) {
 
         const { id: contrato_id } = postData;
 
-        // Marcar local como rentado
+        // Marcar local como rentado y asociar el arrendatario al local
         await actualizarEstatusLocal(local_id, 'rentado');
+        await actualizarArrendatarioLocal(inquilino_id, local_id);
 
         // Generar pagos mensuales automáticamente
         const pagos = generarPagos(contrato_id, local_id, rentaDelLocal, fecha_inicio, fecha_vencimiento);
@@ -175,14 +202,23 @@ export default async function handler(req, res) {
 
         if (putError) throw putError;
 
-        // Si el contrato pasa a vencido o cancelado → liberar el local
-        if (updateData.estatus === 'vencido' || updateData.estatus === 'cancelado') {
+        const statusCambiaADesocupado = updateData.estatus === 'vencido' || updateData.estatus === 'cancelado';
+        const statusCambiaAActivo = updateData.estatus === 'activo';
+
+        if (statusCambiaADesocupado) {
           await actualizarEstatusLocal(putData.local_id, 'desocupado');
+          await sincronizarArrendatarioConContratoActivo(putData.inquilino_id);
+        } else if (statusCambiaAActivo) {
+          await actualizarEstatusLocal(putData.local_id, 'rentado');
+          await actualizarArrendatarioLocal(putData.inquilino_id, putData.local_id);
         }
 
-        // Si el contrato se reactiva → volver a marcar el local como rentado
-        if (updateData.estatus === 'activo') {
-          await actualizarEstatusLocal(putData.local_id, 'rentado');
+        if (updateData.local_id && Number(updateData.local_id) !== contratoActual.local_id) {
+          if (putData.estatus === 'activo') {
+            await actualizarEstatusLocal(contratoActual.local_id, 'desocupado');
+            await actualizarEstatusLocal(putData.local_id, 'rentado');
+            await actualizarArrendatarioLocal(putData.inquilino_id, putData.local_id);
+          }
         }
 
         return res.status(200).json({ success: true, data: putData });
