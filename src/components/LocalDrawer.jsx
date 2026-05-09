@@ -10,7 +10,6 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
   const [form, setForm] = useState({
     numero: "",
     metros_cuadrados: "",
-    estatus: "desocupado",
     renta: "",
     mantenimiento_mensual: ""
   });
@@ -20,7 +19,6 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       setForm(local || {
         numero: "",
         metros_cuadrados: "",
-        estatus: "desocupado",
         renta: "",
         mantenimiento_mensual: ""
       });
@@ -35,13 +33,11 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       const token = session?.access_token;
 
       const payload = {
-        ...form,
-        numero: Number(form.numero),
-        metros_cuadrados: Number(form.metros_cuadrados),
-        renta: Number(form.renta),
-        mantenimiento_mensual: Number(form.mantenimiento_mensual),
-        estatus: "desocupado" // siempre desocupado al crear/editar manualmente
-      };
+  numero: Number(form.numero),
+  metros_cuadrados: Number(form.metros_cuadrados),
+  renta: Number(form.renta),
+  mantenimiento_mensual: Number(form.mantenimiento_mensual)
+};
 
       const response = await fetch(API_URL_ACTION, {
         method: esEdicion ? 'PUT' : 'POST',
@@ -53,6 +49,10 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       });
 
       const result = await response.json();
+      if (!form.numero || Number(form.numero) <= 0)        throw new Error("Número de local inválido");
+      if (!form.metros_cuadrados || Number(form.metros_cuadrados) <= 0)        throw new Error("Metros cuadrados inválidos");
+      if (form.renta === "" || Number(form.renta) < 0)        throw new Error("Renta inválida");
+      if (form.mantenimiento_mensual === "" || Number(form.mantenimiento_mensual) < 0)        throw new Error("Mantenimiento mensual inválido");
       if (!response.ok) throw new Error(result.error || "Error en la operación");
 
       onSaved();
@@ -73,6 +73,7 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       <input
         type="number"
         placeholder="Número"
+        disabled={esEdicion}
         value={form.numero}
         onChange={e => setForm({ ...form, numero: e.target.value })}
       />

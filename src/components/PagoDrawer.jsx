@@ -39,7 +39,12 @@ export default function PagoDrawer({ open, onClose, onSaved, pago = null }) {
         metodo_pago: form.metodo_pago || null,
         notas: form.notas || null
       };
+const monto = Number(form.monto_pagado);
 
+if (isNaN(monto) || monto < 0) {
+  setError("Monto inválido");
+  return;
+}
       const response = await fetch(API_URL_ACTION, {
         method: 'PUT',
         headers: {
@@ -68,7 +73,7 @@ export default function PagoDrawer({ open, onClose, onSaved, pago = null }) {
       <h2>Registrar Pago</h2>
 
       <p style={{ fontSize: '13px', color: '#888', marginBottom: '12px' }}>
-        Periodo: <strong>{pago.periodo}</strong> — Local: <strong>{pago.local_id}</strong>
+        Periodo: <strong>{pago.periodo}</strong> — Local: <strong>{pago.locales?.numero}</strong>
         <br />
         Monto esperado: <strong>${pago.monto_esperado}</strong>
       </p>

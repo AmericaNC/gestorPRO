@@ -91,7 +91,15 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
         arrendRes.json()
       ]);
 
-      setLocales(localesData.data || []);
+     const disponibles = (localesData.data || []).filter(local => {
+  if (esEdicion && Number(local.numero) === Number(contrato?.local_id)) {
+    return true;
+  }
+
+  return local.estatus !== "rentado";
+});
+
+setLocales(disponibles);
       setArrendatarios(arrendData.data || []);
     } catch (err) {
       setError("Error cargando opciones: " + err.message);
@@ -179,6 +187,7 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
+    if (loading) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -197,7 +206,11 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
       };
 
       if (esEdicion) payload.id = contrato.id;
-
+if (form.fecha_inicio > form.fecha_vencimiento) {
+  throw new Error(
+    "La fecha de inicio no puede ser mayor a la de vencimiento"
+  );
+}
       const response = await fetch(API_URL_ACTION, {
         method: esEdicion ? "PUT" : "POST",
         headers: {

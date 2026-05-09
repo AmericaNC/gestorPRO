@@ -34,16 +34,39 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
   }, [open, arrendatario]);
 
   const handleSubmit = async () => {
+
+  if (loading) return;
+
+  setError("");
   setLoading(true);
+
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!form.nombre.trim()) {
+      setError("El nombre es requerido");
+      setLoading(false);
+      return;
+    }
+
+    if (
+      form.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+    ) {
+      setError("Correo inválido");
+      setLoading(false);
+      return;
+    }
+
+    const {
+      data: { session }
+    } = await supabase.auth.getSession();
+
     const token = session?.access_token;
 
     const payload = {
-      nombre:   form.nombre,
-      local_id: null,          // ← se asigna desde el contrato, no desde aquí
-      email:    form.email    || null,
-      telefono: form.telefono || null
+      nombre: form.nombre.trim(),
+      email: form.email?.trim() || null,
+      telefono: form.telefono?.trim() || null
     };
 
     if (esEdicion) {
@@ -53,21 +76,33 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
     const response = await fetch(API_URL_ACTION, {
       method: esEdicion ? 'PUT' : 'POST',
       headers: {
-        'Content-Type':  'application/json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(payload)
     });
 
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Error en la operación");
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        result.message ||
+        "Error en la operación"
+      );
+    }
 
     onSaved();
     onClose();
+
   } catch (err) {
+
     setError(err.message);
+
   } finally {
+
     setLoading(false);
+
   }
 };
   if (!open) return null;
@@ -80,6 +115,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="text"
         placeholder="Nombre completo"
         value={form.nombre}
+        disabled={loading}
         onChange={e => setForm({ ...form, nombre: e.target.value })}
       />
 
@@ -87,6 +123,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="email"
         placeholder="Correo electrónico (opcional)"
         value={form.email}
+        disabled={loading}
         onChange={e => setForm({ ...form, email: e.target.value })}
       />
 
@@ -94,12 +131,15 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="tel"
         placeholder="Teléfono (opcional)"
         value={form.telefono}
+        disabled={loading}
         onChange={e => setForm({ ...form, telefono: e.target.value })}
       />
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <button onClick={onClose}>Cancelar</button>
+      <button onClick={onClose} disabled={loading}>
+        Cancelar
+      </button>
       <button onClick={handleSubmit} disabled={loading}>
         {loading ? "Guardando..." : "Guardar"}
       </button>

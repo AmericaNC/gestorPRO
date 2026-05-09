@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabaseClient";
 import { apiUrl } from "../lib/apiClient";
 import ArrendatarioDrawer from "../components/ArrendatarioDrawer";
 
+import "../styles/Page.css";
+
 const API_URL_GET = apiUrl('/api/arrendatarios');
 
 export default function ArrendatariosPage() {
@@ -15,6 +17,7 @@ export default function ArrendatariosPage() {
   const fetchArrendatarios = async () => {
     setLoading(true);
     setError(null);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -28,16 +31,19 @@ export default function ArrendatariosPage() {
       });
 
       const contentType = response.headers.get("content-type");
+
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
         console.error("Respuesta no válida del servidor:", text);
-        throw new Error("El servidor no respondió con JSON. Revisa la URL en Vercel.");
+        throw new Error("El servidor no respondió con JSON.");
       }
 
       const result = await response.json();
       setArrendatarios(result.data || []);
+
     } catch (err) {
       setError(err.message);
+
     } finally {
       setLoading(false);
     }
@@ -48,51 +54,82 @@ export default function ArrendatariosPage() {
   }, []);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h1>Gestión de Arrendatarios</h1>
+    <div className="container">
+
+      <div className="page-header">
+        <div>
+          <h1>Gestión de Arrendatarios</h1>
+          <p>Administra los arrendatarios registrados</p>
+        </div>
+
         <button
           className="btn-primary"
-          onClick={() => { setSelectedArrendatario(null); setDrawerOpen(true); }}
+          onClick={() => {
+            setSelectedArrendatario(null);
+            setDrawerOpen(true);
+          }}
         >
           + Nuevo Arrendatario
         </button>
       </div>
 
-      {loading ? (
-        <p>Cargando...</p>
-      ) : error ? (
-        <p style={{ color: 'red' }}>{error}</p>
-      ) : (
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #eee' }}>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Teléfono</th>
-              <th>Local</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {arrendatarios.map((a) => (
-              <tr key={a.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td>{a.nombre}</td>
-                <td>{a.email || '—'}</td>
-                <td>{a.telefono || '—'}</td>
-                <td>{a.local_id ?? '—'}</td>
-                <td>{a.estado}</td>
-                <td>
-                  <button onClick={() => { setSelectedArrendatario(a); setDrawerOpen(true); }}>
-                    Editar
-                  </button>
-                </td>
+      <div className="table-card">
+
+        {loading ? (
+          <div className="state-message">
+            <p>Cargando arrendatarios...</p>
+          </div>
+
+        ) : error ? (
+          <div className="state-message error">
+            <p>{error}</p>
+          </div>
+
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Teléfono</th>
+                <th>Local</th>
+                <th>Estado</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+
+            <tbody>
+              {arrendatarios.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.nombre}</td>
+                  <td>{a.email || '—'}</td>
+                  <td>{a.telefono || '—'}</td>
+                  <td>{a.locales?.numero ?? '—'}</td>
+
+                  <td>
+                    <span className={`status ${a.estado?.toLowerCase()}`}>
+                      {a.estado}
+                    </span>
+                  </td>
+
+                  <td>
+                    <button
+                      className="btn-edit"
+                      onClick={() => {
+                        setSelectedArrendatario(a);
+                        setDrawerOpen(true);
+                      }}
+                    >
+                      Editar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+      </div>
 
       <ArrendatarioDrawer
         open={drawerOpen}
