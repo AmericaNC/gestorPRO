@@ -360,9 +360,7 @@ export default async function handler(req, res) {
         monto_pagado: montoPagado,
         fecha_pago: req.body.fecha_pago || null,
         metodo_pago: metodoPago,
-        notas: limpiarTexto(req.body.notas),
-        diferencia,
-        estado
+        notas: limpiarTexto(req.body.notas)
       };
 
       const {
