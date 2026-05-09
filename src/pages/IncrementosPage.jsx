@@ -126,7 +126,7 @@ const contratosMap = new Map(
         a => a.id === id
       );
 
-    const contrato = contratosMap.get(a.id);
+    const contrato = contratosMap.get(arrendatario.id);
       if (!arrendatario || !contrato) {
         return null;
       }

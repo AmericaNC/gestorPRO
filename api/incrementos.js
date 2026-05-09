@@ -29,8 +29,7 @@ const limpiarIds = (ids) => {
 
   return [...new Set(
     ids
-      .map(id => Number(id))
-      .filter(id => Number.isInteger(id) && id > 0)
+      .filter(id => id && typeof id === 'string' && id.trim() !== '')
   )];
 };
 
