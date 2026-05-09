@@ -33,11 +33,16 @@ export default function LocalDrawer({ open, onClose, onSaved, local = null }) {
       const token = session?.access_token;
 
       const payload = {
-  numero: Number(form.numero),
-  metros_cuadrados: Number(form.metros_cuadrados),
-  renta: Number(form.renta),
-  mantenimiento_mensual: Number(form.mantenimiento_mensual)
-};
+        metros_cuadrados: Number(form.metros_cuadrados),
+        renta: Number(form.renta),
+        mantenimiento_mensual: Number(form.mantenimiento_mensual)
+      };
+
+      if (!esEdicion) {
+        payload.numero = Number(form.numero);
+      } else {
+        payload.id = local.id;
+      }
 
       const response = await fetch(API_URL_ACTION, {
         method: esEdicion ? 'PUT' : 'POST',

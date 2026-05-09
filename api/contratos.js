@@ -266,7 +266,7 @@ export default async function handler(req, res) {
         .from('contratos')
         .insert([{
           local_id: Number(local_id),
-          inquilino_id: Number(inquilino_id),
+          inquilino_id,
           fecha_inicio,
           fecha_vencimiento,
           renta: local.renta,
@@ -371,9 +371,7 @@ export default async function handler(req, res) {
 
       const updateData = {
         local_id: Number(local_id || contratoActual.local_id),
-        inquilino_id: Number(
-          inquilino_id || contratoActual.inquilino_id
-        ),
+        inquilino_id: inquilino_id || contratoActual.inquilino_id,
         fecha_inicio:
           fecha_inicio || contratoActual.fecha_inicio,
         fecha_vencimiento:

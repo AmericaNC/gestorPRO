@@ -28,7 +28,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
     fecha_inicio:      "",
     fecha_vencimiento: "",
     renta:             "",
-    estatus:           "activo",
     contrato_pdf_url:  ""
   });
 
@@ -45,7 +44,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
           fecha_inicio:      contrato.fecha_inicio || "",
           fecha_vencimiento: contrato.fecha_vencimiento || "",
           renta:             contrato.renta || "",
-          estatus:           contrato.estatus || "activo",
           contrato_pdf_url:  contrato.contrato_pdf_url || ""
         });
         // Mostrar nombre del archivo existente si hay URL
@@ -60,7 +58,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
           fecha_inicio:      "",
           fecha_vencimiento: "",
           renta:             "",
-          estatus:           "activo",
           contrato_pdf_url:  ""
         });
       }
@@ -201,7 +198,6 @@ setLocales(disponibles);
         inquilino_id:      form.inquilino_id,
         fecha_inicio:      form.fecha_inicio,
         fecha_vencimiento: form.fecha_vencimiento,
-        estatus:           form.estatus,
         contrato_pdf_url:  pdfUrl || null
       };
 
@@ -289,16 +285,6 @@ if (form.fecha_inicio > form.fecha_vencimiento) {
             disabled
             style={{ opacity: 0.6, cursor: "not-allowed" }}
           />
-
-          {/* Estatus */}
-          <select
-            value={form.estatus}
-            onChange={e => setForm({ ...form, estatus: e.target.value })}
-          >
-            <option value="activo">Activo</option>
-            <option value="vencido">Vencido</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
 
           {/* ── Upload PDF ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
