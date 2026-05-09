@@ -158,7 +158,7 @@ export default async function handler(req, res) {
       if (contrato_id) {
         query = query.eq(
           'contrato_id',
-          Number(contrato_id)
+          contrato_id
         );
       }
 
@@ -198,7 +198,7 @@ export default async function handler(req, res) {
       // Delete alternativo
       if (req.body.action === 'delete') {
 
-        const id = Number(req.body.id);
+        const id = req.body.id;
 
         if (!id) {
           return res.status(400).json({
@@ -272,12 +272,11 @@ export default async function handler(req, res) {
       } = await supabaseAdmin
         .from('pagos')
         .insert([{
-          contrato_id: Number(contrato_id),
+          contrato_id,
           local_id: Number(local_id),
           periodo,
           monto_esperado: montoEsperado,
-          monto_pagado: 0,
-          estado: 'pendiente'
+          monto_pagado: 0
         }])
         .select()
         .single();
@@ -296,7 +295,7 @@ export default async function handler(req, res) {
 
     if (method === 'PUT') {
 
-      const id = Number(req.body.id);
+      const id = req.body.id;
 
       if (!id) {
         return res.status(400).json({
@@ -391,8 +390,8 @@ export default async function handler(req, res) {
     if (method === 'DELETE') {
 
       const id =
-        Number(req.query.id) ||
-        Number(req.body.id);
+        req.query.id ||
+        req.body.id;
 
       if (!id) {
         return res.status(400).json({
