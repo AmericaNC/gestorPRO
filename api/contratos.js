@@ -43,8 +43,7 @@ function generarPagos(
       contrato_id,
       local_id,
       monto_esperado: renta,
-      monto_pagado: 0,
-      estado: 'pendiente'
+      monto_pagado: 0
     });
 
     cursor.setMonth(cursor.getMonth() + 1);
