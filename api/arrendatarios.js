@@ -54,7 +54,9 @@ const emailValido = (email) => {
 
 const telefonoValido = (telefono) => {
   if (!telefono) return true
-  return /^[0-9+\-\s()]+$/.test(telefono)
+  if (!/^[0-9+\-\s()]+$/.test(telefono)) return false
+  const soloNumeros = telefono.replace(/[^0-9]/g, '')
+  return soloNumeros.length >= 7 && soloNumeros.length <= 15
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -114,6 +116,7 @@ export default async function handler(req, res) {
           *,
           locales(numero)
         `)
+        .eq('activo', true)
         .order('nombre', { ascending: true })
 
       // búsqueda opcional
@@ -205,24 +208,45 @@ export default async function handler(req, res) {
       }
 
       if (!telefonoValido(telefono)) {
-        return fail(res, 'Teléfono inválido', 400)
+        return fail(res, 'Teléfono debe tener entre 7 y 15 dígitos', 400)
       }
 
-      // verificar duplicado aproximado
+      // verificar duplicado de nombre entre activos
       const {
         data: existente
       } = await supabaseAdmin
         .from('arrendatarios')
         .select('id')
         .ilike('nombre', nombre)
+        .eq('activo', true)
         .maybeSingle()
 
       if (existente) {
         return fail(
           res,
-          'Ya existe un arrendatario con ese nombre',
+          'Ya existe un arrendatario activo con ese nombre',
           409
         )
+      }
+
+      // verificar email duplicado entre activos
+      if (email) {
+        const {
+          data: emailExistente
+        } = await supabaseAdmin
+          .from('arrendatarios')
+          .select('id')
+          .eq('email', email)
+          .eq('activo', true)
+          .maybeSingle()
+
+        if (emailExistente) {
+          return fail(
+            res,
+            'Ya existe un arrendatario activo con ese correo',
+            409
+          )
+        }
       }
 
       // insertar
@@ -280,7 +304,7 @@ export default async function handler(req, res) {
       }
 
       if (!telefonoValido(telefono)) {
-        return fail(res, 'Teléfono inválido', 400)
+        return fail(res, 'Teléfono debe tener entre 7 y 15 dígitos', 400)
       }
 
       // verificar existencia
@@ -299,22 +323,44 @@ export default async function handler(req, res) {
         return fail(res, 'Arrendatario no encontrado', 404)
       }
 
-      // verificar duplicados
+      // verificar duplicados de nombre entre activos
       const {
         data: duplicado
       } = await supabaseAdmin
         .from('arrendatarios')
         .select('id')
         .ilike('nombre', nombre)
+        .eq('activo', true)
         .neq('id', id)
         .maybeSingle()
 
       if (duplicado) {
         return fail(
           res,
-          'Ya existe otro arrendatario con ese nombre',
+          'Ya existe otro arrendatario activo con ese nombre',
           409
         )
+      }
+
+      // verificar email duplicado entre activos
+      if (email) {
+        const {
+          data: emailExistente
+        } = await supabaseAdmin
+          .from('arrendatarios')
+          .select('id')
+          .eq('email', email)
+          .eq('activo', true)
+          .neq('id', id)
+          .maybeSingle()
+
+        if (emailExistente) {
+          return fail(
+            res,
+            'Ya existe otro arrendatario activo con ese correo',
+            409
+          )
+        }
       }
 
       // update

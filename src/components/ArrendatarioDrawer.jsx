@@ -7,6 +7,7 @@ const API_URL_ACTION = apiUrl('/api/arrendatarios');
 export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatario = null }) {
   const esEdicion = arrendatario !== null;
   const [loading, setLoading] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     nombre: "",
@@ -33,6 +34,15 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
     }
   }, [open, arrendatario]);
 
+  const validarTelefono = (telefono) => {
+    if (!telefono) return null;
+    const soloNumeros = telefono.replace(/[^0-9]/g, "");
+    if (soloNumeros.length < 7 || soloNumeros.length > 15) {
+      return "El teléfono debe tener entre 7 y 15 dígitos";
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
 
   if (loading) return;
@@ -53,6 +63,13 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
     ) {
       setError("Correo inválido");
+      setLoading(false);
+      return;
+    }
+
+    const telefonoError = validarTelefono(form.telefono);
+    if (telefonoError) {
+      setError(telefonoError);
       setLoading(false);
       return;
     }
@@ -105,6 +122,48 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
 
   }
 };
+
+  const handleEliminar = async () => {
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que deseas eliminar a ${arrendatario.nombre}? Esta acción no se puede deshacer.`
+    );
+
+    if (!confirmacion) return;
+
+    setError("");
+    setEliminando(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch(API_URL_ACTION, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          id: arrendatario.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al eliminar");
+      }
+
+      onSaved();
+      onClose();
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEliminando(false);
+    }
+  };
   if (!open) return null;
 
   return (
@@ -115,7 +174,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="text"
         placeholder="Nombre completo"
         value={form.nombre}
-        disabled={loading}
+        disabled={loading || eliminando}
         onChange={e => setForm({ ...form, nombre: e.target.value })}
       />
 
@@ -123,7 +182,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="email"
         placeholder="Correo electrónico (opcional)"
         value={form.email}
-        disabled={loading}
+        disabled={loading || eliminando}
         onChange={e => setForm({ ...form, email: e.target.value })}
       />
 
@@ -131,18 +190,33 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         type="tel"
         placeholder="Teléfono (opcional)"
         value={form.telefono}
-        disabled={loading}
+        disabled={loading || eliminando}
         onChange={e => setForm({ ...form, telefono: e.target.value })}
       />
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      <button onClick={onClose} disabled={loading}>
-        Cancelar
-      </button>
-      <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Guardando..." : "Guardar"}
-      </button>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+        <button onClick={onClose} disabled={loading || eliminando}>
+          Cancelar
+        </button>
+        <button onClick={handleSubmit} disabled={loading || eliminando}>
+          {loading ? "Guardando..." : "Guardar"}
+        </button>
+        {esEdicion && (
+          <button
+            onClick={handleEliminar}
+            disabled={loading || eliminando}
+            style={{
+              background: '#ef4444',
+              color: 'white',
+              marginLeft: 'auto'
+            }}
+          >
+            {eliminando ? "Eliminando..." : "Eliminar"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
