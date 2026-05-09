@@ -323,16 +323,15 @@ export default async function handler(req, res) {
         fecha_vencimiento
       );
 
-      const { error: pagosError } =
-        await supabaseAdmin
-          .from('pagos')
-          .insert(pagos);
+      if (pagos.length > 0) {
+        const { error: pagosError } =
+          await supabaseAdmin
+            .from('pagos')
+            .insert(pagos);
 
-      if (pagosError) {
-        console.error(
-          'Error generando pagos:',
-          pagosError.message
-        );
+        if (pagosError) {
+          throw new Error('Error generando pagos: ' + pagosError.message);
+        }
       }
 
       return res.status(201).json({
