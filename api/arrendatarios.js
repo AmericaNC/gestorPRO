@@ -149,7 +149,7 @@ export default async function handler(req, res) {
           return fail(res, 'ID requerido', 400)
         }
 
-        // validar contratos asociados
+        // validar contratos ACTIVOS asociados
         const {
           count,
           error: countError
@@ -157,13 +157,14 @@ export default async function handler(req, res) {
           .from('contratos')
           .select('*', { count: 'exact', head: true })
           .eq('inquilino_id', id)
+          .eq('estatus', 'activo')
 
         if (countError) throw countError
 
         if (count > 0) {
           return fail(
             res,
-            `No se puede eliminar: el arrendatario tiene ${count} contrato(s) asociado(s).`,
+            `No se puede eliminar: el arrendatario tiene ${count} contrato(s) activo(s).`,
             400
           )
         }
