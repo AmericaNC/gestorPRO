@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { apiUrl } from "../lib/apiClient";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 import "../styles/Page.css";
+import "../styles/DashboardPage.css";
 
 const API_URL_LOCALES       = apiUrl('/api/locales');
 const API_URL_CONTRATOS     = apiUrl('/api/contratos');
@@ -279,10 +281,7 @@ export default function DashboardPage() {
     color
   }) => (
 
-    <div
-      className="table-card"
-      style={{ padding: '20px' }}
-    >
+    <div className="table-card dashboard-card">
 
       <p className="summary-label">
         {label}
@@ -297,7 +296,17 @@ export default function DashboardPage() {
 
     </div>
   );
-
+const dataOcupacion = [
+  { name: 'Rentados', value: localesRentados.length, color: '#10b981' },
+  { name: 'Desocupados', value: localesDesocupados.length, color: '#ef4444' }
+];
+const dataPagos = [
+  {
+    name: periodoActual,
+    Cobrado: totalCobradoMes,
+    Pendiente: totalEsperadoMes - totalCobradoMes
+  }
+];
   return (
 
     <div className="container">
@@ -696,7 +705,49 @@ export default function DashboardPage() {
         )}
 
       </section>
+    <section style={{ marginBottom: '24px' }}>
+  <h2 className="section-title">Análisis Visual</h2>
+  <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+    
+    {/* Gráfica de Ocupación */}
+    <div className="dashboard-card" style={{ height: '220px' }}>
+      <p className="summary-label">Distribución de Locales</p>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={dataOcupacion}
+            innerRadius={45}
+            outerRadius={70}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {dataOcupacion.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend iconSize={10} wrapperStyle={{ fontSize: '12px' }} />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
 
+    {/* Gráfica de Pagos */}
+    <div className="dashboard-card" style={{ height: '220px' }}>
+      <p className="summary-label">Estado de Cobranza ($)</p>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={dataPagos} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} />
+          <Tooltip cursor={{fill: 'transparent'}} />
+          <Legend iconSize={10} wrapperStyle={{ fontSize: '12px' }} />
+          <Bar dataKey="Cobrado" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40} />
+          <Bar dataKey="Pendiente" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={40} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+
+  </div>
+</section>
       {/* ───────────────────── */}
       {/* INCREMENTOS */}
       {/* ───────────────────── */}

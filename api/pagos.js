@@ -46,22 +46,6 @@ const validarMetodoPago = (metodo) => {
     : null;
 };
 
-const calcularEstadoPago = (
-  montoEsperado,
-  montoPagado
-) => {
-
-  if (montoPagado <= 0) {
-    return 'pendiente';
-  }
-
-  if (montoPagado < montoEsperado) {
-    return 'parcial';
-  }
-
-  return 'pagado';
-};
-
 // ─────────────────────────────────────────────────────────────
 // Auth
 // ─────────────────────────────────────────────────────────────
@@ -343,26 +327,12 @@ export default async function handler(req, res) {
         });
       }
 
-      // Calcular automáticamente
-      const diferencia =
-        redondear2(
-          pagoActual.monto_esperado -
-          montoPagado
-        );
-
-      const estado =
-        calcularEstadoPago(
-          pagoActual.monto_esperado,
-          montoPagado
-        );
-
-      const updateData = {
-        monto_pagado: montoPagado,
-        fecha_pago: req.body.fecha_pago || null,
-        metodo_pago: metodoPago,
-        notas: limpiarTexto(req.body.notas)
-      };
-
+const updateData = {
+  monto_pagado: montoPagado,
+  fecha_pago: req.body.fecha_pago || null,
+  metodo_pago: metodoPago,
+  notas: limpiarTexto(req.body.notas)
+};
       const {
         data,
         error
@@ -437,10 +407,3 @@ export default async function handler(req, res) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Utils
-// ─────────────────────────────────────────────────────────────
-
-function redondear2(numero) {
-  return Math.round(numero * 100) / 100;
-}

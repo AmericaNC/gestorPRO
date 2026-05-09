@@ -14,7 +14,11 @@ const supabaseAuth = createClient(
 /* HELPERS */
 /* ────────────────────────────────────────────────────────────── */
 
-const ESTATUS_VALIDOS = ['activo', 'vencido', 'cancelado'];
+const ESTATUS_VALIDOS = [
+  'activo',
+  'vencido',
+  'cancelado'
+];
 
 function validarFecha(fecha) {
   return !isNaN(new Date(fecha).getTime());
@@ -27,16 +31,26 @@ function generarPagos(
   fecha_inicio,
   fecha_vencimiento
 ) {
+
   const pagos = [];
 
   const inicio = new Date(fecha_inicio);
+
   const fin = new Date(fecha_vencimiento);
 
-  let cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  let cursor = new Date(
+    inicio.getFullYear(),
+    inicio.getMonth(),
+    1
+  );
 
   while (cursor <= fin) {
+
     const año = cursor.getFullYear();
-    const mes = String(cursor.getMonth() + 1).padStart(2, '0');
+
+    const mes = String(
+      cursor.getMonth() + 1
+    ).padStart(2, '0');
 
     pagos.push({
       periodo: `${año}-${mes}`,
@@ -46,68 +60,128 @@ function generarPagos(
       monto_pagado: 0
     });
 
-    cursor.setMonth(cursor.getMonth() + 1);
+    cursor.setMonth(
+      cursor.getMonth() + 1
+    );
   }
 
   return pagos;
 }
 
 async function obtenerLocal(numeroLocal) {
-  const { data, error } = await supabaseAdmin
-    .from('locales')
-    .select('*')
-    .eq('numero', Number(numeroLocal))
-    .single();
 
-  if (error) throw new Error('Local no encontrado');
+  const { data, error } =
+    await supabaseAdmin
+      .from('locales')
+      .select('*')
+      .eq('numero', Number(numeroLocal))
+      .single();
+
+  if (error || !data) {
+    throw new Error('Local no encontrado');
+  }
 
   return data;
 }
 
-async function actualizarEstatusLocal(localNumero, estatus) {
-  const { error } = await supabaseAdmin
-    .from('locales')
-    .update({ estatus })
-    .eq('numero', Number(localNumero));
+async function obtenerArrendatario(inquilino_id) {
+
+  const { data, error } =
+    await supabaseAdmin
+      .from('arrendatarios')
+      .select('*')
+      .eq('id', inquilino_id)
+      .single();
+
+  if (error || !data) {
+    throw new Error(
+      'Arrendatario no encontrado'
+    );
+  }
+
+  return data;
+}
+
+async function actualizarEstatusLocal(
+  localNumero,
+  estatus
+) {
+
+  const { error } =
+    await supabaseAdmin
+      .from('locales')
+      .update({ estatus })
+      .eq('numero', Number(localNumero));
 
   if (error) {
-    console.error('Error actualizando local:', error.message);
+    console.error(
+      'Error actualizando local:',
+      error.message
+    );
   }
 }
 
-async function actualizarArrendatarioLocal(inquilino_id, local_id) {
-  const { error } = await supabaseAdmin
-    .from('arrendatarios')
-    .update({
-      local_id: local_id ? Number(local_id) : null
-    })
-    .eq('id', inquilino_id);
+async function actualizarArrendatarioLocal(
+  inquilino_id,
+  local_id
+) {
+
+  const { error } =
+    await supabaseAdmin
+      .from('arrendatarios')
+      .update({
+        local_id:
+          local_id
+            ? Number(local_id)
+            : null
+      })
+      .eq('id', inquilino_id);
 
   if (error) {
-    console.error('Error actualizando arrendatario:', error.message);
+    console.error(
+      'Error actualizando arrendatario:',
+      error.message
+    );
   }
 }
 
-async function sincronizarArrendatarioConContratoActivo(inquilino_id) {
-  const { data, error } = await supabaseAdmin
-    .from('contratos')
-    .select('local_id')
-    .eq('inquilino_id', inquilino_id)
-    .eq('estatus', 'activo')
-    .order('created_at', { ascending: false })
-    .limit(1);
+async function sincronizarArrendatarioConContratoActivo(
+  inquilino_id
+) {
+
+  const { data, error } =
+    await supabaseAdmin
+      .from('contratos')
+      .select('local_id')
+      .eq('inquilino_id', inquilino_id)
+      .eq('estatus', 'activo')
+      .order('created_at', {
+        ascending: false
+      })
+      .limit(1);
 
   if (error) return;
 
-  const localActivo = data?.[0]?.local_id || null;
+  const localActivo =
+    data?.[0]?.local_id || null;
 
-  await actualizarArrendatarioLocal(inquilino_id, localActivo);
+  await actualizarArrendatarioLocal(
+    inquilino_id,
+    localActivo
+  );
 }
 
-async function existeContratoActivoEnLocal(local_id, excluirId = null) {
+async function existeContratoActivoEnLocal(
+  local_id,
+  excluirId = null
+) {
+
   let query = supabaseAdmin
     .from('contratos')
-    .select('id', { count: 'exact', head: true })
+    .select('id', {
+      count: 'exact',
+      head: true
+    })
     .eq('local_id', Number(local_id))
     .eq('estatus', 'activo');
 
@@ -115,17 +189,25 @@ async function existeContratoActivoEnLocal(local_id, excluirId = null) {
     query = query.neq('id', excluirId);
   }
 
-  const { count, error } = await query;
+  const { count, error } =
+    await query;
 
   if (error) throw error;
 
   return count > 0;
 }
 
-async function existeContratoActivoParaArrendatario(inquilino_id, excluirId = null) {
+async function existeContratoActivoParaArrendatario(
+  inquilino_id,
+  excluirId = null
+) {
+
   let query = supabaseAdmin
     .from('contratos')
-    .select('id', { count: 'exact', head: true })
+    .select('id', {
+      count: 'exact',
+      head: true
+    })
     .eq('inquilino_id', inquilino_id)
     .eq('estatus', 'activo');
 
@@ -133,7 +215,8 @@ async function existeContratoActivoParaArrendatario(inquilino_id, excluirId = nu
     query = query.neq('id', excluirId);
   }
 
-  const { count, error } = await query;
+  const { count, error } =
+    await query;
 
   if (error) throw error;
 
@@ -144,15 +227,23 @@ async function existeContratoActivoParaArrendatario(inquilino_id, excluirId = nu
 /* HANDLER */
 /* ────────────────────────────────────────────────────────────── */
 
-export default async function handler(req, res) {
+export default async function handler(
+  req,
+  res
+) {
 
-  /* ─── CORS ───────────────────────────────────────────── */
+  /* ─── CORS ───────────────────────────── */
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Origin',
+    '*'
+  );
+
   res.setHeader(
     'Access-Control-Allow-Methods',
     'GET,POST,PUT,DELETE,OPTIONS'
   );
+
   res.setHeader(
     'Access-Control-Allow-Headers',
     'Content-Type, Authorization'
@@ -162,24 +253,36 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  /* ─── AUTH ───────────────────────────────────────────── */
+  /* ─── AUTH ───────────────────────────── */
 
-  const authHeader = req.headers.authorization;
+  const authHeader =
+    req.headers.authorization;
 
   if (!authHeader) {
+
     return res.status(401).json({
       error: 'No auth header'
     });
   }
 
-  const token = authHeader.replace('Bearer ', '');
+  const token =
+    authHeader.replace(
+      'Bearer ',
+      ''
+    );
 
   const {
     data: authData,
     error: authError
-  } = await supabaseAuth.auth.getUser(token);
+  } = await supabaseAuth.auth.getUser(
+    token
+  );
 
-  if (authError || !authData?.user) {
+  if (
+    authError ||
+    !authData?.user
+  ) {
+
     return res.status(401).json({
       error: 'Token inválido'
     });
@@ -193,14 +296,17 @@ export default async function handler(req, res) {
 
     if (method === 'GET') {
 
-      const { data, error } = await supabaseAdmin
-        .from('contratos')
-        .select(`
-          *,
-          arrendatarios(nombre),
-          locales(numero, renta)
-        `)
-        .order('created_at', { ascending: false });
+      const { data, error } =
+        await supabaseAdmin
+          .from('contratos')
+          .select(`
+            *,
+            arrendatarios(nombre),
+            locales(numero, renta)
+          `)
+          .order('created_at', {
+            ascending: false
+          });
 
       if (error) throw error;
 
@@ -231,8 +337,10 @@ export default async function handler(req, res) {
         !fecha_inicio ||
         !fecha_vencimiento
       ) {
+
         return res.status(400).json({
-          error: 'Campos obligatorios faltantes'
+          error:
+            'Campos obligatorios faltantes'
         });
       }
 
@@ -240,6 +348,7 @@ export default async function handler(req, res) {
         !validarFecha(fecha_inicio) ||
         !validarFecha(fecha_vencimiento)
       ) {
+
         return res.status(400).json({
           error: 'Fechas inválidas'
         });
@@ -249,63 +358,115 @@ export default async function handler(req, res) {
         new Date(fecha_inicio) >
         new Date(fecha_vencimiento)
       ) {
+
         return res.status(400).json({
-          error: 'La fecha inicio no puede ser mayor'
+          error:
+            'La fecha inicio no puede ser mayor'
         });
       }
 
       if (
         estatus &&
-        !ESTATUS_VALIDOS.includes(estatus)
+        !ESTATUS_VALIDOS.includes(
+          estatus
+        )
       ) {
+
         return res.status(400).json({
           error: 'Estatus inválido'
         });
       }
 
-      /* VALIDAR LOCAL */
+      /* VALIDAR ENTIDADES */
 
-      const local = await obtenerLocal(local_id);
+      const local =
+        await obtenerLocal(local_id);
 
-      /* EVITAR DUPLICADOS */
+      await obtenerArrendatario(
+        inquilino_id
+      );
 
-      const ocupado = await existeContratoActivoEnLocal(local_id);
+      /* VALIDAR ESTATUS LOCAL */
 
-      if (ocupado) {
+      if (
+        local.estatus &&
+        ![
+          'disponible',
+          'desocupado',
+          'rentado'
+        ].includes(local.estatus)
+      ) {
+
         return res.status(400).json({
-          error: 'El local ya tiene un contrato activo'
+          error:
+            'El local no está disponible para renta'
         });
       }
 
-      const arrendatarioOcupado = await existeContratoActivoParaArrendatario(inquilino_id);
+      /* VALIDAR DUPLICADOS */
+
+      const ocupado =
+        await existeContratoActivoEnLocal(
+          local_id
+        );
+
+      if (ocupado) {
+
+        return res.status(400).json({
+          error:
+            'El local ya tiene un contrato activo'
+        });
+      }
+
+      const arrendatarioOcupado =
+        await existeContratoActivoParaArrendatario(
+          inquilino_id
+        );
 
       if (arrendatarioOcupado) {
+
         return res.status(400).json({
-          error: 'El arrendatario ya tiene un contrato activo'
+          error:
+            'El arrendatario ya tiene un contrato activo'
         });
       }
 
       /* CREAR CONTRATO */
 
-      const { data, error } = await supabaseAdmin
+      const {
+        data,
+        error
+      } = await supabaseAdmin
         .from('contratos')
         .insert([{
-          local_id: Number(local_id),
+          local_id:
+            Number(local_id),
+
           inquilino_id,
+
           fecha_inicio,
+
           fecha_vencimiento,
+
           renta: local.renta,
-          estatus: estatus || 'activo',
-          contrato_pdf_url: contrato_pdf_url || null
+
+          estatus:
+            estatus || 'activo',
+
+          contrato_pdf_url:
+            contrato_pdf_url || null
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      /* ACTUALIZACIONES RELACIONADAS */
+      /* ACTUALIZACIONES */
 
-      await actualizarEstatusLocal(local_id, 'rentado');
+      await actualizarEstatusLocal(
+        local_id,
+        'rentado'
+      );
 
       await actualizarArrendatarioLocal(
         inquilino_id,
@@ -323,13 +484,36 @@ export default async function handler(req, res) {
       );
 
       if (pagos.length > 0) {
-        const { error: pagosError } =
-          await supabaseAdmin
-            .from('pagos')
-            .insert(pagos);
+
+        const {
+          error: pagosError
+        } = await supabaseAdmin
+          .from('pagos')
+          .insert(pagos);
 
         if (pagosError) {
-          throw new Error('Error generando pagos: ' + pagosError.message);
+
+          /* ROLLBACK */
+
+          await supabaseAdmin
+            .from('contratos')
+            .delete()
+            .eq('id', data.id);
+
+          await actualizarEstatusLocal(
+            local_id,
+            'desocupado'
+          );
+
+          await actualizarArrendatarioLocal(
+            inquilino_id,
+            null
+          );
+
+          throw new Error(
+            'Error generando pagos: ' +
+            pagosError.message
+          );
         }
       }
 
@@ -354,6 +538,7 @@ export default async function handler(req, res) {
       } = req.body;
 
       if (!id) {
+
         return res.status(400).json({
           error: 'ID requerido'
         });
@@ -368,67 +553,142 @@ export default async function handler(req, res) {
         .eq('id', id)
         .single();
 
-      if (contratoError) throw contratoError;
-
-      /* VALIDAR CAMBIO DE LOCAL */
-
-      if (
-        local_id &&
-        Number(local_id) !== Number(contratoActual.local_id)
-      ) {
-
-        const ocupado = await existeContratoActivoEnLocal(
-          local_id,
-          id
-        );
-
-        if (ocupado) {
-          return res.status(400).json({
-            error: 'El nuevo local ya está ocupado'
-          });
-        }
+      if (contratoError) {
+        throw contratoError;
       }
 
-      /* VALIDAR CAMBIO DE ARRENDATARIO */
+      const nuevoLocal =
+        local_id ||
+        contratoActual.local_id;
+
+      const nuevoInquilino =
+        inquilino_id ||
+        contratoActual.inquilino_id;
+
+      const nuevoEstatus =
+        estatus ||
+        contratoActual.estatus;
+
+      const fechaInicioFinal =
+        fecha_inicio ||
+        contratoActual.fecha_inicio;
+
+      const fechaFinFinal =
+        fecha_vencimiento ||
+        contratoActual.fecha_vencimiento;
+
+      /* VALIDAR FECHAS */
 
       if (
-        inquilino_id &&
-        inquilino_id !== contratoActual.inquilino_id
+        !validarFecha(fechaInicioFinal) ||
+        !validarFecha(fechaFinFinal)
       ) {
 
-        const arrendatarioOcupado = await existeContratoActivoParaArrendatario(
-          inquilino_id,
-          id
-        );
-
-        if (arrendatarioOcupado) {
-          return res.status(400).json({
-            error: 'El nuevo arrendatario ya tiene un contrato activo'
-          });
-        }
+        return res.status(400).json({
+          error: 'Fechas inválidas'
+        });
       }
 
-      const local = await obtenerLocal(
-        local_id || contratoActual.local_id
+      if (
+        new Date(fechaInicioFinal) >
+        new Date(fechaFinFinal)
+      ) {
+
+        return res.status(400).json({
+          error:
+            'La fecha inicio no puede ser mayor'
+        });
+      }
+
+      /* VALIDAR ESTATUS */
+
+      if (
+        nuevoEstatus &&
+        !ESTATUS_VALIDOS.includes(
+          nuevoEstatus
+        )
+      ) {
+
+        return res.status(400).json({
+          error: 'Estatus inválido'
+        });
+      }
+
+      /* VALIDAR LOCAL */
+
+      const local =
+        await obtenerLocal(nuevoLocal);
+
+      /* VALIDAR ARRENDATARIO */
+
+      await obtenerArrendatario(
+        nuevoInquilino
       );
 
+      /* VALIDAR OCUPACIÓN */
+
+      if (nuevoEstatus === 'activo') {
+
+        const ocupado =
+          await existeContratoActivoEnLocal(
+            nuevoLocal,
+            id
+          );
+
+        if (ocupado) {
+
+          return res.status(400).json({
+            error:
+              'Ya existe un contrato activo en ese local'
+          });
+        }
+
+        const arrendatarioOcupado =
+          await existeContratoActivoParaArrendatario(
+            nuevoInquilino,
+            id
+          );
+
+        if (arrendatarioOcupado) {
+
+          return res.status(400).json({
+            error:
+              'El arrendatario ya tiene otro contrato activo'
+          });
+        }
+      }
+
+      /* UPDATE */
+
       const updateData = {
-        local_id: Number(local_id || contratoActual.local_id),
-        inquilino_id: inquilino_id || contratoActual.inquilino_id,
+
+        local_id:
+          Number(nuevoLocal),
+
+        inquilino_id:
+          nuevoInquilino,
+
         fecha_inicio:
-          fecha_inicio || contratoActual.fecha_inicio,
+          fechaInicioFinal,
+
         fecha_vencimiento:
-          fecha_vencimiento ||
-          contratoActual.fecha_vencimiento,
+          fechaFinFinal,
+
         estatus:
-          estatus || contratoActual.estatus,
+          nuevoEstatus,
+
         contrato_pdf_url:
           contrato_pdf_url ||
           contratoActual.contrato_pdf_url,
-        renta: local.renta
+
+        renta:
+          local.renta
       };
 
-      const { data, error } = await supabaseAdmin
+      const {
+        data,
+        error
+      } = await supabaseAdmin
         .from('contratos')
         .update(updateData)
         .eq('id', id)
@@ -437,44 +697,82 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
-      /* SINCRONIZAR LOCALES */
+      /* CAMBIO DE LOCAL */
 
       if (
-        Number(contratoActual.local_id) !==
+        Number(
+          contratoActual.local_id
+        ) !==
         Number(updateData.local_id)
       ) {
 
-        await actualizarEstatusLocal(
-          contratoActual.local_id,
-          'desocupado'
-        );
+        const sigueOcupado =
+          await existeContratoActivoEnLocal(
+            contratoActual.local_id
+          );
 
-        if (updateData.estatus === 'activo') {
+        if (!sigueOcupado) {
+
+          await actualizarEstatusLocal(
+            contratoActual.local_id,
+            'desocupado'
+          );
+        }
+
+        if (
+          updateData.estatus === 'activo'
+        ) {
+
           await actualizarEstatusLocal(
             updateData.local_id,
             'rentado'
           );
         }
+
+        /* ACTUALIZAR PAGOS */
+
+        await supabaseAdmin
+          .from('pagos')
+          .update({
+            local_id:
+              updateData.local_id
+          })
+          .eq('contrato_id', id)
+          .eq('estado', 'pendiente');
       }
 
-      /* SINCRONIZAR ESTATUS */
+      /* ESTATUS */
 
       if (
-        updateData.estatus === 'vencido' ||
-        updateData.estatus === 'cancelado'
+        updateData.estatus ===
+          'vencido' ||
+        updateData.estatus ===
+          'cancelado'
       ) {
 
-        await actualizarEstatusLocal(
-          updateData.local_id,
-          'desocupado'
-        );
+        const sigueOcupado =
+          await existeContratoActivoEnLocal(
+            updateData.local_id,
+            id
+          );
+
+        if (!sigueOcupado) {
+
+          await actualizarEstatusLocal(
+            updateData.local_id,
+            'desocupado'
+          );
+        }
 
         await sincronizarArrendatarioConContratoActivo(
           updateData.inquilino_id
         );
       }
 
-      if (updateData.estatus === 'activo') {
+      if (
+        updateData.estatus ===
+        'activo'
+      ) {
 
         await actualizarEstatusLocal(
           updateData.local_id,
@@ -497,9 +795,12 @@ export default async function handler(req, res) {
 
     if (method === 'DELETE') {
 
-      const id = req.query.id || req.body.id;
+      const id =
+        req.query.id ||
+        req.body.id;
 
       if (!id) {
+
         return res.status(400).json({
           error: 'ID requerido'
         });
@@ -516,16 +817,21 @@ export default async function handler(req, res) {
         .eq('id', id)
         .single();
 
-      if (contratoError) throw contratoError;
+      if (contratoError) {
+        throw contratoError;
+      }
 
       /* BORRAR PAGOS */
 
-      const { error: pagosError } = await supabaseAdmin
+      const {
+        error: pagosError
+      } = await supabaseAdmin
         .from('pagos')
         .delete()
         .eq('contrato_id', id);
 
       if (pagosError) {
+
         console.error(
           'Error eliminando pagos:',
           pagosError.message
@@ -534,19 +840,30 @@ export default async function handler(req, res) {
 
       /* BORRAR CONTRATO */
 
-      const { error } = await supabaseAdmin
-        .from('contratos')
-        .delete()
-        .eq('id', id);
+      const { error } =
+        await supabaseAdmin
+          .from('contratos')
+          .delete()
+          .eq('id', id);
 
       if (error) throw error;
 
       /* LIBERAR LOCAL */
 
-      await actualizarEstatusLocal(
-        contrato.local_id,
-        'desocupado'
-      );
+      const sigueOcupado =
+        await existeContratoActivoEnLocal(
+          contrato.local_id
+        );
+
+      if (!sigueOcupado) {
+
+        await actualizarEstatusLocal(
+          contrato.local_id,
+          'desocupado'
+        );
+      }
+
+      /* SINCRONIZAR */
 
       await sincronizarArrendatarioConContratoActivo(
         contrato.inquilino_id
@@ -554,7 +871,8 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
-        message: 'Contrato eliminado'
+        message:
+          'Contrato eliminado'
       });
     }
 
@@ -569,16 +887,56 @@ export default async function handler(req, res) {
       `Method ${method} Not Allowed`
     );
 
-  } catch (error) {
+ } catch (error) {
 
-    console.error(
-      'SERVER ERROR /api/contratos:',
-      error
-    );
+  console.error(
+    'SERVER ERROR /api/contratos:',
+    error
+  );
 
-    return res.status(500).json({
+  /* UNIQUE */
+  if (
+    error.message?.includes('unique') ||
+    error.code === '23505'
+  ) {
+
+    return res.status(400).json({
       success: false,
-      error: error.message
+      error:
+        'Ya existe un registro duplicado'
     });
   }
+
+  /* CHECK CONSTRAINT */
+  if (
+    error.message?.includes('check constraint') ||
+    error.code === '23514'
+  ) {
+
+    return res.status(400).json({
+      success: false,
+      error:
+        'Los datos no cumplen las reglas de validación'
+    });
+  }
+
+  /* FOREIGN KEY */
+  if (
+    error.message?.includes('foreign key') ||
+    error.code === '23503'
+  ) {
+
+    return res.status(400).json({
+      success: false,
+      error:
+        'Referencia inválida'
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    error:
+      error.message || 'Error interno'
+  });
+}
 }

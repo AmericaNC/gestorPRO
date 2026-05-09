@@ -280,12 +280,14 @@ if (form.fecha_inicio > form.fecha_vencimiento) {
             type="date"
             placeholder="Fecha Inicio"
             value={form.fecha_inicio}
+            disabled={esEdicion}
             onChange={e => setForm({ ...form, fecha_inicio: e.target.value })}
           />
           <input
             type="date"
             placeholder="Fecha Vencimiento"
             value={form.fecha_vencimiento}
+            disabled={esEdicion}
             onChange={e => setForm({ ...form, fecha_vencimiento: e.target.value })}
           />
 

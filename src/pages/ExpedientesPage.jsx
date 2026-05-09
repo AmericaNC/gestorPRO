@@ -30,6 +30,8 @@ export default function ExpedientesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [eliminando, setEliminando] = useState(null);
+
   const [restaurando, setRestaurando] = useState(null);
 
   const [expandido, setExpandido] = useState(null);
@@ -130,6 +132,68 @@ export default function ExpedientesPage() {
     } else {
       setExpandido(contrato_id);
       fetchPagos(contrato_id);
+    }
+  };
+
+  const eliminarContrato = async (contrato) => {
+
+    const pagosPendientes = pagosMap[contrato.id]?.filter(p => p.estado === 'pendiente') || [];
+
+    const mensaje = `¿Eliminar permanentemente este contrato?
+
+Local: ${contrato.locales?.numero ?? contrato.local_id}
+Arrendatario: ${contrato.arrendatarios?.nombre ?? contrato.inquilino_id}
+Estatus: ${contrato.estatus}
+
+⚠️ Esta acción NO es reversible.
+⚠️ Se eliminarán pago(s) pendiente(s).
+⚠️ Se perderá todo el historial de pagos.
+
+¿Confirmar eliminación?`;
+
+    if (!window.confirm(mensaje)) return;
+
+    setEliminando(contrato.id);
+
+    try {
+
+      const token = await getToken();
+
+      const response = await fetch(`${API_URL_CONTRATOS}?id=${contrato.id}`, {
+        method: "DELETE",
+
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al eliminar");
+      }
+
+      fetchExpedientes();
+
+      // Limpiar pagos del mapa
+      setPagosMap(prev => {
+        const nuevo = { ...prev };
+        delete nuevo[contrato.id];
+        return nuevo;
+      });
+
+      if (expandido === contrato.id) {
+        setExpandido(null);
+      }
+
+    } catch (err) {
+
+      alert("Error: " + err.message);
+
+    } finally {
+
+      setEliminando(null);
     }
   };
 
@@ -278,15 +342,29 @@ export default function ExpedientesPage() {
 
                     <td onClick={(e) => e.stopPropagation()}>
 
-                      <button
-                        className="btn-expediente"
-                        onClick={() => restaurarContrato(c)}
-                        disabled={restaurando === c.id}
-                      >
-                        {restaurando === c.id
-                          ? "Restaurando..."
-                          : "← Restaurar"}
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+
+                        <button
+                          className="btn-expediente"
+                          onClick={() => restaurarContrato(c)}
+                          disabled={restaurando === c.id || eliminando === c.id}
+                        >
+                          {restaurando === c.id
+                            ? "Restaurando..."
+                            : "← Restaurar"}
+                        </button>
+
+                        <button
+                          className="btn-danger"
+                          onClick={() => eliminarContrato(c)}
+                          disabled={restaurando === c.id || eliminando === c.id}
+                        >
+                          {eliminando === c.id
+                            ? "Eliminando..."
+                            : "🗑️ Eliminar"}
+                        </button>
+
+                      </div>
 
                     </td>
 

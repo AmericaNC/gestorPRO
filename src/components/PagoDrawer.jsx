@@ -39,12 +39,19 @@ export default function PagoDrawer({ open, onClose, onSaved, pago = null }) {
         metodo_pago: form.metodo_pago || null,
         notas: form.notas || null
       };
-const monto = Number(form.monto_pagado);
+      const monto = Number(form.monto_pagado);
 
-if (isNaN(monto) || monto < 0) {
-  setError("Monto inválido");
-  return;
-}
+      if (isNaN(monto) || monto < 0) {
+        setError("Monto inválido");
+        setLoading(false);
+        return;
+      }
+
+      if (monto > pago.monto_esperado) {
+        setError("El monto pagado no puede ser mayor al esperado");
+        setLoading(false);
+        return;
+      }
       const response = await fetch(API_URL_ACTION, {
         method: 'PUT',
         headers: {

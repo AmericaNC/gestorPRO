@@ -419,10 +419,49 @@ export default async function handler(req, res) {
 
     console.error('SERVER ERROR /api/arrendatarios:', error)
 
-    return fail(
-      res,
-      error.message || 'Error interno del servidor',
-      500
-    )
+    /* UNIQUE */
+if (
+  error.message?.includes('unique') ||
+  error.code === '23505'
+) {
+
+  return fail(
+    res,
+    'Ya existe un registro duplicado',
+    409
+  )
+}
+
+/* CHECK */
+if (
+  error.message?.includes('check constraint') ||
+  error.code === '23514'
+) {
+
+  return fail(
+    res,
+    'Los datos no cumplen las reglas de validación',
+    400
+  )
+}
+
+/* FOREIGN KEY */
+if (
+  error.message?.includes('foreign key') ||
+  error.code === '23503'
+) {
+
+  return fail(
+    res,
+    'Referencia inválida',
+    400
+  )
+}
+
+return fail(
+  res,
+  error.message || 'Error interno del servidor',
+  500
+)
   }
 }

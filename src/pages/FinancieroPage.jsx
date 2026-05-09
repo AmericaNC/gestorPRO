@@ -4,6 +4,7 @@ import { apiUrl } from "../lib/apiClient";
 import PagoDrawer from "../components/PagoDrawer";
 
 import "../styles/Page.css";
+import "../styles/FinancieroPage.css";
 
 const API_URL_GET       = apiUrl('/api/pagos');
 const API_URL_CONTRATOS = apiUrl('/api/contratos');
@@ -286,14 +287,7 @@ export default function FinancieroPage() {
 
       {/* RESUMEN */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '16px',
-          marginBottom: '24px'
-        }}
-      >
+      <div className="financiero-summary">
 
         <div className="table-card" style={{ padding: '20px' }}>
           <p className="summary-label">
@@ -419,22 +413,11 @@ export default function FinancieroPage() {
               }}
             >
 
-              <h2
-                style={{
-                  fontSize: '15px',
-                  color: '#374151',
-                  margin: 0
-                }}
-              >
+              <h2 className="financiero-title">
                 Contratos activos
               </h2>
 
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#6b7280'
-                }}
-              >
+              <span className="financiero-count">
                 {pagosActivos.length} registros
               </span>
 
@@ -466,37 +449,14 @@ export default function FinancieroPage() {
 
           <div>
 
-            <button
-              onClick={() =>
-                setVencidosExpandido(v => !v)
-              }
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                marginBottom: '14px',
-                padding: 0,
-                color: '#4b5563',
-                fontWeight: 600
-              }}
-            >
-
-              <span style={{ fontSize: '11px' }}>
+            <button className="financiero-expand-btn">
+              <span className="financiero-icon">
                 {vencidosExpandido ? '▼' : '▶'}
               </span>
 
               Contratos vencidos / cancelados
 
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#9ca3af',
-                  fontWeight: 400
-                }}
-              >
+              <span className="financiero-count" style={{ color: '#9ca3af', fontWeight: 400 }}>
                 {pagosVencidos.length} registros
               </span>
 
