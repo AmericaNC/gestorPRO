@@ -123,6 +123,24 @@ async function existeContratoActivoEnLocal(local_id, excluirId = null) {
   return count > 0;
 }
 
+async function existeContratoActivoParaArrendatario(inquilino_id, excluirId = null) {
+  let query = supabaseAdmin
+    .from('contratos')
+    .select('id', { count: 'exact', head: true })
+    .eq('inquilino_id', inquilino_id)
+    .eq('estatus', 'activo');
+
+  if (excluirId) {
+    query = query.neq('id', excluirId);
+  }
+
+  const { count, error } = await query;
+
+  if (error) throw error;
+
+  return count > 0;
+}
+
 /* ────────────────────────────────────────────────────────────── */
 /* HANDLER */
 /* ────────────────────────────────────────────────────────────── */
@@ -260,6 +278,14 @@ export default async function handler(req, res) {
         });
       }
 
+      const arrendatarioOcupado = await existeContratoActivoParaArrendatario(inquilino_id);
+
+      if (arrendatarioOcupado) {
+        return res.status(400).json({
+          error: 'El arrendatario ya tiene un contrato activo'
+        });
+      }
+
       /* CREAR CONTRATO */
 
       const { data, error } = await supabaseAdmin
@@ -361,6 +387,25 @@ export default async function handler(req, res) {
         if (ocupado) {
           return res.status(400).json({
             error: 'El nuevo local ya está ocupado'
+          });
+        }
+      }
+
+      /* VALIDAR CAMBIO DE ARRENDATARIO */
+
+      if (
+        inquilino_id &&
+        inquilino_id !== contratoActual.inquilino_id
+      ) {
+
+        const arrendatarioOcupado = await existeContratoActivoParaArrendatario(
+          inquilino_id,
+          id
+        );
+
+        if (arrendatarioOcupado) {
+          return res.status(400).json({
+            error: 'El nuevo arrendatario ya tiene un contrato activo'
           });
         }
       }

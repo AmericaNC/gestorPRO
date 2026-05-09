@@ -78,14 +78,16 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const [localesRes, arrendRes] = await Promise.all([
+      const [localesRes, arrendRes, contratosRes] = await Promise.all([
         fetch(API_URL_LOCALES,       { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch(API_URL_ARRENDATARIOS, { headers: { "Authorization": `Bearer ${token}` } })
+        fetch(API_URL_ARRENDATARIOS, { headers: { "Authorization": `Bearer ${token}` } }),
+        fetch(API_URL_ACTION,        { headers: { "Authorization": `Bearer ${token}` } })
       ]);
 
-      const [localesData, arrendData] = await Promise.all([
+      const [localesData, arrendData, contratosData] = await Promise.all([
         localesRes.json(),
-        arrendRes.json()
+        arrendRes.json(),
+        contratosRes.json()
       ]);
 
      const disponibles = (localesData.data || []).filter(local => {
@@ -96,8 +98,18 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
   return local.estatus !== "rentado";
 });
 
+      const contratosActivos = (contratosData.data || []).filter(c => c.estatus === 'activo');
+      const arrendatariosOcupados = contratosActivos.map(c => c.inquilino_id);
+
+      const arrendatariosDisponibles = (arrendData.data || []).filter(a => {
+        if (esEdicion && a.id === contrato?.inquilino_id) {
+          return true;
+        }
+        return !arrendatariosOcupados.includes(a.id);
+      });
+
 setLocales(disponibles);
-      setArrendatarios(arrendData.data || []);
+      setArrendatarios(arrendatariosDisponibles);
     } catch (err) {
       setError("Error cargando opciones: " + err.message);
     } finally {
