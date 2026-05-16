@@ -41,9 +41,11 @@ export default function LogsPanel() {
     fetchLogs();
   }, []);
 
-  const formatFecha = (fecha) => {
-  return new Date(fecha).toLocaleString("es-MX", {
-    timeZone: "America/Tijuana",  // ← esto es todo
+const formatFecha = (fecha) => {
+  // Forzar que JS lo interprete como UTC agregando la Z
+  const fechaUTC = fecha.endsWith('Z') ? fecha : fecha + 'Z';
+  return new Date(fechaUTC).toLocaleString("es-MX", {
+    timeZone: "America/Tijuana",
     dateStyle: "short",
     timeStyle: "short"
   });
