@@ -5,27 +5,27 @@ const AuthContext = createContext(null)
 
 const DEV_ADMIN_EMAILS = ['usuario.prueba@gmail.com']
 
+// ← fuera del componente, persiste en memoria durante la sesión
+let cachedRole = null
+
 async function getRolFromDB(uid, email) {
   if (!uid) return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
+
+  if (cachedRole) return cachedRole
 
   try {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 5000)
     )
-
-    const query = supabase
-      .from('usuarios')
-      .select('rol')
-      .eq('id', uid)
-      .single()
-
+    const query = supabase.from('usuarios').select('rol').eq('id', uid).single()
     const { data, error } = await Promise.race([query, timeout])
 
     if (error || !data?.rol) {
       return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
     }
 
-    return data.rol
+    cachedRole = data.rol
+    return cachedRole
   } catch {
     return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
   }
@@ -50,6 +50,7 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
           if (mounted) {
+            cachedRole = null
             setUser(null)
             setRoleResolved(true)
             setLoading(false)
@@ -57,10 +58,7 @@ export function AuthProvider({ children }) {
           return
         }
 
-        if (mounted) {
-          setUser(null)
-          setRoleResolved(false)
-        }
+        if (mounted) setRoleResolved(false)
 
         try {
           const enrichedUser = await buildUser(session?.user ?? null)
@@ -80,7 +78,6 @@ export function AuthProvider({ children }) {
       }
     )
 
-    // ← esto faltaba en tu versión
     return () => {
       mounted = false
       subscription?.unsubscribe()
@@ -122,6 +119,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       setError(null)
+      cachedRole = null  // ← limpiar cache al cerrar sesión
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
     } catch (err) {
