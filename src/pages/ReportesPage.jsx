@@ -96,8 +96,7 @@ export default function ReportesPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
-
-  // ── Totales siempre desde contratos activos (sin filtro de fecha) ──
+// ── Totales siempre desde contratos activos (sin filtro de fecha) ──
   const contratosActivosIds = contratos.filter(c => c.estatus === 'activo').map(c => c.id);
   const pagosActivos        = pagos.filter(p => contratosActivosIds.includes(p.contrato_id));
 
@@ -118,38 +117,74 @@ export default function ReportesPage() {
   );
 
   // ── Mantenimiento — SÍ usa filtro de periodo ──
-  const detalleMantenimiento = contratos
+  const localIdsConContrato = contratos
     .filter(c => c.estatus === 'activo')
-    .map(c => {
-      const rangeStart = finDesde || c.fecha_inicio;
-      const rangeEnd   = finHasta || c.fecha_vencimiento;
-      const meses      = getMonthsBetween(rangeStart, rangeEnd);
+    .map(c => c.local_id);
 
+  const gastosHuerfanos = gastos.filter(g => {
+    const enPeriodo = (!finDesde || g.fecha >= finDesde) && (!finHasta || g.fecha <= finHasta);
+    return !localIdsConContrato.includes(g.local_id) && enPeriodo;
+  });
+
+  const gastosHuerfanosPorLocal = gastosHuerfanos.reduce((acc, g) => {
+    if (!acc[g.local_id]) acc[g.local_id] = [];
+    acc[g.local_id].push(g);
+    return acc;
+  }, {});
+
+  const detalleMantenimiento = [
+    ...contratos
+      .filter(c => c.estatus === 'activo')
+      .map(c => {
+        const rangeStart = finDesde || c.fecha_inicio;
+        const rangeEnd   = finHasta || c.fecha_vencimiento;
+        const meses      = getMonthsBetween(rangeStart, rangeEnd);
+        return {
+          contrato: c,
+          desglose: meses.map(mes => {
+            const gastosDelMes = gastos.filter(g =>
+              g.local_id === c.local_id &&
+              g.fecha?.slice(0, 7) === mes
+            );
+            const hayGastosReales = gastosDelMes.length > 0;
+            return {
+              mes,
+              tipo:  hayGastosReales ? "REAL" : "SIMULADO",
+              monto: hayGastosReales
+                ? gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0)
+                : Number(c.locales?.mantenimiento_mensual || 0),
+              gastos: gastosDelMes,
+            };
+          })
+        };
+      }),
+
+    ...Object.entries(gastosHuerfanosPorLocal).map(([localId, gastosLocal]) => {
+      const mesesConGastos = [...new Set(gastosLocal.map(g => g.fecha?.slice(0, 7)))];
       return {
-        contrato: c,
-        desglose: meses.map(mes => {
-          const gastosDelMes = gastos.filter(g =>
-            String(g.local_id) === String(c.local_id) &&
-            g.fecha?.slice(0, 7) === mes
-          );
-          const hayGastosReales = gastosDelMes.length > 0;
+        contrato: {
+          id: `huerfano-${localId}`,
+          local_id: Number(localId),
+          locales: { numero: Number(localId) },
+          arrendatarios: null,
+        },
+        desglose: mesesConGastos.map(mes => {
+          const gastosDelMes = gastosLocal.filter(g => g.fecha?.slice(0, 7) === mes);
           return {
             mes,
-            tipo:   hayGastosReales ? "REAL" : "SIMULADO",
-            monto:  hayGastosReales
-              ? gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0)
-              : Number(c.locales?.mantenimiento_mensual || 0),
+            tipo: "REAL",
+            monto: gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0),
             gastos: gastosDelMes,
           };
         })
       };
-    });
+    })
+  ];
 
   const totalMantenimiento = detalleMantenimiento.reduce(
     (acc, c) => acc + c.desglose.reduce((s, d) => s + d.monto, 0),
     0
   );
-
   // ── Contratos filtrados ──
   const contratosReporte = contratos.filter(c => {
     if (contEstatus && c.estatus !== contEstatus) return false;
