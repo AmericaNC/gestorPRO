@@ -1,289 +1,444 @@
+/* ─── Layout ─────────────────────────────────────────────── */
 .container {
-  padding: 32px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
-/* HEADER */
-
+/* ─── Header ─────────────────────────────────────────────── */
 .page-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 22px;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .page-header h1 {
-  font-size: 22px;
-  font-weight: 600;
-  color: #111827;
-  margin: 0;
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+  color: #111;
 }
 
 .page-header p {
-  margin-top: 6px;
+  margin: 0;
   color: #6b7280;
-  font-size: 14px;
+  font-size: 0.9rem;
 }
 
-/* BOTÓN */
-
+/* ─── Buttons ─────────────────────────────────────────────── */
 .btn-primary {
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
-  color: white;
+  background: #2563eb;
+  color: #fff;
   border: none;
-  padding: 12px 18px;
-  border-radius: 14px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: 0.2s ease;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.btn-primary:hover { background: #1d4ed8; }
+
+.btn-edit {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn-edit:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+.btn-edit-full {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  text-align: center;
+  border-radius: 8px;
 }
 
-.btn-primary:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
-}
-
-/* CARD */
-
+/* ─── Card wrapper ────────────────────────────────────────── */
 .table-card {
-  background: #ffffff;
-  border-radius: 20px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
   overflow: hidden;
-  border: 1px solid #ececec;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
 }
 
-/* TABLA */
+/* ─── States ─────────────────────────────────────────────── */
+.state-message {
+  padding: 3rem;
+  text-align: center;
+  color: #6b7280;
+}
+.state-message.error { color: #dc2626; }
+
+/* ─── Status badges ───────────────────────────────────────── */
+.status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.status.rentado                { background: #dcfce7; color: #166534; }
+.status.desocupado             { background: #fee2e2; color: #991b1b; }
+.status.propuesta_activa       { background: #fef9c3; color: #854d0e; }
+.status.proximo_a_desocuparse  { background: #ffedd5; color: #9a3412; }
+
+/* ─── Desktop table ───────────────────────────────────────── */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
+  min-width: 860px;
 }
 
-.data-table thead {
-  background: #fafafa;
+.data-table thead tr {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .data-table th {
+  padding: 0.75rem 1rem;
   text-align: left;
-  padding: 18px;
-  font-size: 14px;
   font-weight: 600;
+  font-size: 0.78rem;
   color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 18px;
-  font-size: 14px;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
   color: #111827;
-  border-top: 1px solid #f3f4f6;
+  white-space: nowrap;
 }
 
-.data-table tbody tr {
-  transition: background 0.15s ease;
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: #f9fafb; }
+
+.col-money { text-align: right; font-variant-numeric: tabular-nums; }
+.col-total { font-weight: 600; }
+.col-rate  { color: #6b7280; font-size: 0.82rem; }
+
+/* ─── Mobile cards (hidden on desktop) ───────────────────── */
+.mobile-cards { display: none; }
+
+.mobile-card {
+  border-bottom: 1px solid #f3f4f6;
 }
+.mobile-card:last-child { border-bottom: none; }
 
-.data-table tbody tr:hover {
-  background: #fafafa;
-}
-
-/* BOTÓN EDITAR */
-
-.btn-edit {
-  background: #f3f0ff;
-  color: #6d28d9;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: 0.2s ease;
-}
-
-.btn-edit:hover {
-  background: #ede9fe;
-}
-
-/* ESTADOS */
-
-.status {
-  display: inline-flex;
+.mobile-card-header {
+  display: flex;
   align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.status.activo {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status.pendiente {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status.inactivo {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-/* MENSAJES */
-
-.state-message {
-  padding: 40px;
-  text-align: center;
-  color: #6b7280;
-}
-
-.state-message.error {
-  color: #dc2626;
-}
-
-
-.btn-expediente {
-  background: #fef2f2;
-  color: #dc2626;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
   cursor: pointer;
-  font-size: 13px;
+  gap: 0.5rem;
+  user-select: none;
+}
+.mobile-card-header:active { background: #f9fafb; }
+
+.mobile-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.local-number {
   font-weight: 600;
-  transition: 0.2s ease;
+  font-size: 0.95rem;
+  color: #111827;
+  white-space: nowrap;
+}
+.local-m2 {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  white-space: nowrap;
 }
 
-.btn-expediente:hover {
-  background: #fee2e2;
+.mobile-card-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.mobile-total {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.chevron {
+  font-size: 1.25rem;
+  color: #9ca3af;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+.chevron.open { transform: rotate(90deg); }
+
+.mobile-card-body {
+  padding: 0 1rem 1rem;
 }
 
-.btn-expediente:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
 }
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.detail-label {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.detail-value {
+  font-size: 0.9rem;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+.detail-value.highlight {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+/* ─── Status badges — contratos ──────────────────────────── */
+.status.vencido    { background: #fee2e2; color: #991b1b; }
+.status.cancelado  { background: #f3f4f6; color: #6b7280; }
+.status.activo     { background: #dcfce7; color: #166534; }
+
+/* ─── Botones de expediente ───────────────────────────────── */
+.btn-expediente {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-expediente:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+.btn-expediente:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-danger {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: 0.2s ease;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
 }
+.btn-danger:hover:not(:disabled) { background: #fef2f2; border-color: #f87171; }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-danger:hover {
-  background: #b91c1c;
-}
-
-.btn-danger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.status.activo {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status.negociacion {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.status.vencido {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-/* EXPEDIENTES */
-
-.expandable-row {
-  cursor: pointer;
-  transition: 0.15s ease;
-}
-
-.expandable-row:hover {
-  background: #fafafa;
-}
-
-.expandable-row.expanded {
-  background: #fafafa;
-}
+/* ─── Fila expandible ─────────────────────────────────────── */
+.expandable-row { cursor: pointer; }
+.expandable-row:hover { background: #f9fafb; }
+.expandable-row.expanded { background: #f9fafb; }
 
 .expand-icon {
-  text-align: center;
-  font-size: 11px;
   color: #9ca3af;
+  font-size: 0.7rem;
+  user-select: none;
 }
 
-/* CONTENIDO EXPANDIDO */
-
-.expanded-content-row td {
-  background: #fafafa;
-  border-top: none;
-}
+/* ─── Subtabla de pagos ───────────────────────────────────── */
+.expanded-content-row td { padding: 0 !important; border-bottom: 1px solid #e5e7eb; }
 
 .expanded-content {
-  padding: 8px 0 18px 24px;
+  padding: 1rem 1.25rem 1.25rem 2.5rem;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
 }
 
 .expanded-content h4 {
-  margin: 12px 0 18px 0;
-  font-size: 14px;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #374151;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.75rem;
 }
 
-/* TABLA PAGOS */
+.small-message {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin: 0;
+}
 
 .payments-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.82rem;
 }
-
-.payments-table thead {
-  background: transparent;
-}
-
 .payments-table th {
+  padding: 0.5rem 0.75rem;
   text-align: left;
-  padding: 12px 10px;
-  color: #6b7280;
-  font-size: 12px;
   font-weight: 600;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
   border-bottom: 1px solid #e5e7eb;
 }
-
 .payments-table td {
-  padding: 12px 10px;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid #f3f4f6;
-  font-size: 13px;
+  color: #374151;
+  white-space: nowrap;
 }
-
-/* ESTADO PAGOS */
+.payments-table tbody tr:last-child td { border-bottom: none; }
 
 .payment-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
   text-transform: capitalize;
 }
 
-/* MENSAJES */
+.diff-negative { color: #dc2626; font-variant-numeric: tabular-nums; }
+.diff-positive { color: #16a34a; font-variant-numeric: tabular-nums; }
 
-.small-message {
-  color: #6b7280;
-  font-size: 13px;
-  margin: 12px 0;
+/* ─── Mobile cards — expedientes ─────────────────────────── */
+.exp-card {
+  border-bottom: 1px solid #f3f4f6;
+}
+.exp-card:last-child { border-bottom: none; }
+
+.exp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  gap: 0.5rem;
+  user-select: none;
+}
+.exp-card-header:active { background: #f9fafb; }
+
+.exp-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+.exp-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.exp-card-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #111827;
+}
+.exp-card-sub {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.exp-card-body {
+  padding: 0 1rem 1rem;
+}
+
+.exp-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.exp-card-actions .btn-expediente,
+.exp-card-actions .btn-danger {
+  flex: 1;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+/* Subpagos en móvil */
+.exp-pagos-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.exp-pago-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.82rem;
+}
+.exp-pago-row:last-child { border-bottom: none; }
+
+.exp-pago-periodo { color: #374151; font-weight: 500; }
+.exp-pago-monto   { color: #6b7280; font-variant-numeric: tabular-nums; }
+
+.page-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+/* ─── Responsive breakpoints ─────────────────────────────── */
+
+/* Tablet: hide per-m² columns to reduce clutter */
+@media (max-width: 1024px) {
+  .data-table { min-width: 680px; }
+}
+
+/* Mobile: swap table → cards */
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  .page-header h1 { font-size: 1.2rem; }
+  .table-scroll { display: none; }
+  .mobile-cards  { display: block; }
+  .exp-desktop   { display: none; }
+  .exp-mobile    { display: block; }
+  
+}
+
+@media (min-width: 641px) {
+  .exp-mobile { display: none; }
+  .exp-desktop { display: block; }
 }

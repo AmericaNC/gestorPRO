@@ -6,10 +6,9 @@ const AuthContext = createContext(null)
 const DEV_ADMIN_EMAILS = ['usuario.prueba@gmail.com']
 
 async function getRolFromDB(uid, email) {
-  if (!uid) return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
+  if (!uid) return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
 
   try {
-    // Timeout de 5s para que nunca se quede colgado
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 5000)
     )
@@ -23,12 +22,12 @@ async function getRolFromDB(uid, email) {
     const { data, error } = await Promise.race([query, timeout])
 
     if (error || !data?.rol) {
-      return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
+      return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
     }
 
     return data.rol
   } catch {
-    return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : 'lector'
+    return DEV_ADMIN_EMAILS.includes(email?.toLowerCase()) ? 'admin' : null
   }
 }
 
@@ -39,28 +38,49 @@ async function buildUser(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [user, setUser]                 = useState(null)
+  const [loading, setLoading]           = useState(true)
+  const [roleResolved, setRoleResolved] = useState(false)
+  const [error, setError]               = useState(null)
 
   useEffect(() => {
     let mounted = true
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          if (mounted) {
+            setUser(null)
+            setRoleResolved(true)
+            setLoading(false)
+          }
+          return
+        }
+
+        if (mounted) {
+          setUser(null)
+          setRoleResolved(false)
+        }
+
         try {
-          console.log('Auth event:', event, session?.user?.email) 
           const enrichedUser = await buildUser(session?.user ?? null)
-          if (mounted) setUser(enrichedUser)
+          if (mounted) {
+            setUser(enrichedUser)
+            setRoleResolved(true)
+          }
         } catch (err) {
           console.error('onAuthStateChange error:', err)
-          if (mounted) setUser(null)
+          if (mounted) {
+            setUser(null)
+            setRoleResolved(true)
+          }
         } finally {
           if (mounted) setLoading(false)
         }
       }
     )
 
+    // ← esto faltaba en tu versión
     return () => {
       mounted = false
       subscription?.unsubscribe()
@@ -70,10 +90,8 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       setError(null)
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) throw signInError
-      const enrichedUser = await buildUser(data.user)
-      setUser(enrichedUser)
       return { success: true }
     } catch (err) {
       setError(err.message)
@@ -91,7 +109,6 @@ export function AuthProvider({ children }) {
         const { error: insertError } = await supabase
           .from('usuarios')
           .insert([{ id: data.user.id, email: data.user.email, rol }])
-
         if (insertError) console.warn('Error al insertar usuario:', insertError.message)
       }
 
@@ -107,14 +124,13 @@ export function AuthProvider({ children }) {
       setError(null)
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
-      setUser(null)
     } catch (err) {
       setError(err.message)
     }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, roleResolved, error, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )

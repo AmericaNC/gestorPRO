@@ -302,7 +302,7 @@ export default async function handler(
           .select(`
             *,
             arrendatarios(nombre),
-            locales(numero, renta)
+            locales(numero, renta, mantenimiento_mensual)
           `)
           .order('created_at', {
             ascending: false

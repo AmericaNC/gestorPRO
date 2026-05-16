@@ -1,66 +1,380 @@
+/* ──────────────────────────────────────────────────────
+   ReportesPage.css
+────────────────────────────────────────────────────── */
+
+/* ── Page ───────────────────────────────────────────── */
+.reportes-page {
+  padding: 32px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.reportes-page-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 2rem;
+}
+
+/* ── Sections ───────────────────────────────────────── */
 .reportes-section {
-  margin-bottom: 36px;
-  padding: 20px;
-  border: 1px solid #eee;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.03);
+}
+
+.reportes-section + .reportes-section { margin-top: 3rem; }
+
+/* ── Header ─────────────────────────────────────────── */
+.reportes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .reportes-title {
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 600;
-  margin-bottom: 16px;
-  margin: 0 0 16px 0;
+  color: #111827;
+  margin: 0;
 }
 
-.reportes-label {
-  font-size: 12px;
-  color: #888;
-  margin: 0 0 4px 0;
+.reportes-subtitle {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
 }
 
+/* ── Filters ────────────────────────────────────────── */
 .reportes-row {
   display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .reportes-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.4rem;
+  min-width: 180px;
+}
+
+.reportes-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reportes-field input,
+.reportes-field select {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.reportes-field input:focus,
+.reportes-field select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+/* ── Summary cards ──────────────────────────────────── */
+.reportes-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.reportes-card {
+  background: #fafafa;
+  border: 1px solid #f3f4f6;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.reportes-card-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Frecuencia — subtexto discreto ─────────────────── */
+.reportes-freq {
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: #c4c9d4;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.reportes-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.reportes-card-value.success { color: #16a34a; }
+.reportes-card-value.danger  { color: #dc2626; }
+
+/* ── Tables ─────────────────────────────────────────── */
+.reportes-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
 }
 
 .reportes-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 700px;
+  overflow: hidden;
+  border-radius: 14px;
 }
 
 .reportes-th {
   text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid #ddd;
-  font-weight: 500;
-  color: #555;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #fafafa;
 }
 
 .reportes-td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.9rem;
+  color: #374151;
 }
 
-.reportes-summary {
+.reportes-table tbody tr { transition: background 0.15s; }
+.reportes-table tbody tr:nth-child(even) { background: #fafafa; }
+.reportes-table tbody tr:hover { background: #eef4ff; }
+
+/* ── Status colors ──────────────────────────────────── */
+.reportes-success { color: #16a34a; font-weight: 600; }
+.reportes-danger  { color: #dc2626; font-weight: 600; }
+.reportes-warning { color: #d97706; font-weight: 600; }
+.reportes-muted   { color: #9ca3af; }
+
+/* ── Empty state ────────────────────────────────────── */
+.reportes-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+/* ── Contratos grid ─────────────────────────────────── */
+.reportes-contracts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.25rem;
+}
+
+.reportes-contract-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 1.2rem;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+}
+
+.reportes-contract-card:hover {
+  border-color: #dbeafe;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+}
+
+.reportes-contract-header {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.reportes-card {
-  padding: 12px 16px;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  min-width: 140px;
+.reportes-contract-local {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.reportes-contract-name {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.reportes-contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.reportes-contract-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.reportes-contract-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.reportes-contract-value {
+  font-size: 0.92rem;
+  color: #111827;
+}
+
+.reportes-contract-renta { grid-column: span 2; }
+
+/* ── Badge ──────────────────────────────────────────── */
+.reportes-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.reportes-badge.activo    { background: #dcfce7; color: #166534; }
+.reportes-badge.vencido   { background: #fee2e2; color: #991b1b; }
+.reportes-badge.cancelado { background: #f3f4f6; color: #6b7280; }
+
+/* ── Empty card ─────────────────────────────────────── */
+.reportes-empty-card {
+  padding: 2rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 16px;
+  text-align: center;
+  color: #9ca3af;
+  background: #fafafa;
+}
+
+/* ── Botón secundario ───────────────────────────────── */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-top: 0.25rem;
+}
+.btn-secondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* ── Aviso de alcance ───────────────────────────────── */
+.reportes-scope-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+  color: #0369a1;
+  line-height: 1.5;
+}
+.reportes-scope-icon {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  margin-top: 0.05rem;
+}
+
+/* ── Divisor de sección interna ─────────────────────── */
+.reportes-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.75rem 0 1rem;
+  color: #9ca3af;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.reportes-divider::before,
+.reportes-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+/* ── Nota de filtro ─────────────────────────────────── */
+.reportes-filter-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+  line-height: 1.5;
+  padding: 0.6rem 0.875rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  .reportes-page    { padding: 1rem; }
+  .reportes-section { padding: 1rem; border-radius: 16px; }
+
+  .reportes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .reportes-header .btn-primary { width: 100%; }
+
+  .reportes-row              { flex-direction: column; }
+  .reportes-field            { width: 100%; }
+  .reportes-summary          { grid-template-columns: 1fr; }
+  .reportes-contracts-grid   { grid-template-columns: 1fr; }
+  .reportes-contract-grid    { grid-template-columns: 1fr; }
+  .reportes-contract-renta   { grid-column: span 1; }
 }

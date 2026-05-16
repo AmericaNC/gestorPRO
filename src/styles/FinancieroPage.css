@@ -1,34 +1,186 @@
+/* ─── Summary cards ───────────────────────────────────────── */
 .financiero-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  padding: 1.25rem;
+}
+
+.summary-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.4rem;
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-value.green { color: #16a34a; }
+.summary-value.red   { color: #dc2626; }
+
+/* ─── Filtros ─────────────────────────────────────────────── */
+.financiero-filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.financiero-filters .filter-input {
+  padding: 0.55rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.financiero-filters .filter-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ─── Secciones ───────────────────────────────────────────── */
+.financiero-section {
+  margin-bottom: 2.5rem;
+}
+
+.financiero-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.875rem;
 }
 
 .financiero-title {
-  font-size: 15px;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #374151;
   margin: 0;
 }
 
 .financiero-count {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.financiero-group {
+  margin-bottom: 1.25rem;
 }
 
 .financiero-expand-btn {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   background: none;
   border: none;
   cursor: pointer;
-  margin-bottom: 14px;
-  padding: 0;
-  color: #4b5563;
+  padding: 0.875rem 1rem;
+  color: #374151;
   font-weight: 600;
+  font-size: 0.875rem;
+  text-align: left;
+  border-radius: 10px;
+  transition: background 0.12s;
 }
+.financiero-expand-btn:hover { background: #f9fafb; }
 
 .financiero-icon {
-  font-size: 11px;
+  font-size: 0.65rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ─── Desktop / móvil toggle ──────────────────────────────── */
+.fin-desktop { display: block; }
+.fin-mobile  { display: none;  }
+
+/* ─── Pago cards ──────────────────────────────────────────── */
+.pago-card {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.pago-card:last-child { border-bottom: none; }
+
+.pago-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.pago-card-periodo {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.pago-card-arrendatario {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 0.6rem;
+}
+
+.pago-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.pago-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pago-card-item-label {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pago-card-item-value {
+  font-size: 0.875rem;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+.pago-card-item-value.green { color: #16a34a; font-weight: 600; }
+.pago-card-item-value.red   { color: #dc2626; font-weight: 600; }
+
+.pago-card-footer {
+  margin-top: 0.25rem;
+}
+
+/* ─── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .financiero-filters {
+    gap: 0.5rem;
+  }
+  .financiero-filters .filter-input {
+    flex: 1 1 140px;
+  }
+  .fin-desktop { display: none;  }
+  .fin-mobile  { display: block; }
+}
+
+@media (min-width: 641px) {
+  .fin-mobile  { display: none;  }
+  .fin-desktop { display: block; }
 }

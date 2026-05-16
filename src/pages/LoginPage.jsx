@@ -86,12 +86,7 @@ export default function LoginPage() {
 
           <div className="form-options">
             <label className="remember">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              Mantener sesión iniciada
+              
             </label>
 
           </div>
@@ -105,7 +100,7 @@ export default function LoginPage() {
           </button>
 
           <p className="signup">
-            ¿No tienes cuenta? <span>Solicita acceso</span>
+            ¿No tienes cuenta? <span>Solicita acceso a tu administrador.</span>
           </p>
 
         </form>

@@ -4,6 +4,8 @@ import { apiUrl } from "../lib/apiClient";
 import ArrendatarioDrawer from "../components/ArrendatarioDrawer";
 
 import "../styles/Page.css";
+import "../styles/ArrendatarioPage.css";
+
 
 const API_URL_GET = apiUrl('/api/arrendatarios');
 
@@ -58,7 +60,7 @@ export default function ArrendatariosPage() {
 
       <div className="page-header">
         <div>
-          <h1>Gestión de Arrendatarios</h1>
+          <h1 className="page-title">Gestión de Arrendatarios</h1>
           <p>Administra los arrendatarios registrados</p>
         </div>
 
@@ -86,47 +88,93 @@ export default function ArrendatariosPage() {
           </div>
 
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Teléfono</th>
-                <th>Local</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
+          <>
+  {/* TABLA DESKTOP */}
+  <div className="table-responsive">
+    <table className="data-table desktop-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Local</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
 
-            <tbody>
-              {arrendatarios.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.nombre}</td>
-                  <td>{a.email || '—'}</td>
-                  <td>{a.telefono || '—'}</td>
-                  <td>{a.locales?.numero ?? '—'}</td>
+      <tbody>
+        {arrendatarios.map((a) => (
+          <tr key={a.id}>
+            <td>{a.nombre}</td>
+            <td>{a.email || '—'}</td>
+            <td>{a.telefono || '—'}</td>
+            <td>{a.locales?.numero ?? '—'}</td>
 
-                  <td>
-                    <span className={`status ${a.estado?.toLowerCase()}`}>
-                      {a.estado}
-                    </span>
-                  </td>
+            <td>
+              <span className={`status ${a.estado?.toLowerCase()}`}>
+                {a.estado}
+              </span>
+            </td>
 
-                  <td>
-                    <button
-                      className="btn-edit"
-                      onClick={() => {
-                        setSelectedArrendatario(a);
-                        setDrawerOpen(true);
-                      }}
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <td>
+              <button
+                className="btn-edit"
+                onClick={() => {
+                  setSelectedArrendatario(a);
+                  setDrawerOpen(true);
+                }}
+              >
+                Editar
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {/* CARDS MOBILE */}
+  <div className="mobile-cards">
+    {arrendatarios.map((a) => (
+      <div className="arrendatario-card" key={a.id}>
+        <div className="card-header">
+          <h3>{a.nombre}</h3>
+
+          <span className={`status ${a.estado?.toLowerCase()}`}>
+            {a.estado}
+          </span>
+        </div>
+
+        <div className="card-body">
+          <p>
+            <strong>Email:</strong> {a.email || '—'}
+          </p>
+
+          <p>
+            <strong>Teléfono:</strong> {a.telefono || '—'}
+          </p>
+
+          <p>
+            <strong>Local:</strong> {a.locales?.numero ?? '—'}
+          </p>
+        </div>
+
+        <div className="card-actions">
+          <button
+            className="btn-edit"
+            onClick={() => {
+              setSelectedArrendatario(a);
+              setDrawerOpen(true);
+            }}
+          >
+            Editar
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</>
         )}
 
       </div>

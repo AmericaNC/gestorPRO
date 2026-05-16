@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { apiUrl } from "../lib/apiClient";
+import { logAction } from "../lib/logAction";
+import "../styles/LocalDrawer.css";
 
 const API_URL_ACTION = apiUrl('/api/arrendatarios');
 
@@ -109,6 +111,19 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
       );
     }
 
+    // Obtener información del usuario autenticado para el log
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Registrar la acción en los logs
+    await logAction({
+      usuario_id: user?.id,
+      usuario_email: user?.email,
+      accion: esEdicion ? "editar" : "crear",
+      entidad: "arrendatarios",
+      entidad_id: esEdicion ? arrendatario.id : (result.data?.id || ""),
+      descripcion: `Arrendatario ${form.nombre} ${esEdicion ? "modificado" : "creado"}`
+    });
+
     onSaved();
     onClose();
 
@@ -155,6 +170,19 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
         throw new Error(result.error || "Error al eliminar");
       }
 
+      // Obtener información del usuario autenticado para el log
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Registrar la acción en los logs
+      await logAction({
+        usuario_id: user?.id,
+        usuario_email: user?.email,
+        accion: "eliminar",
+        entidad: "arrendatarios",
+        entidad_id: arrendatario.id,
+        descripcion: `Arrendatario ${arrendatario.nombre} eliminado`
+      });
+
       onSaved();
       onClose();
 
@@ -167,56 +195,133 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
   if (!open) return null;
 
   return (
-    <div className="drawer-container">
-      <h2>{esEdicion ? "Editar Arrendatario" : "Nuevo Arrendatario"}</h2>
+  <div className="drawer-overlay">
+    <div className="drawer-panel">
 
-      <input
-        type="text"
-        placeholder="Nombre completo"
-        value={form.nombre}
-        disabled={loading || eliminando}
-        onChange={e => setForm({ ...form, nombre: e.target.value })}
-      />
+      <div className="drawer-header">
+        <div className="drawer-header-text">
+          <h2>
+            {esEdicion
+              ? "Editar Arrendatario"
+              : "Nuevo Arrendatario"}
+          </h2>
 
-      <input
-        type="email"
-        placeholder="Correo electrónico (opcional)"
-        value={form.email}
-        disabled={loading || eliminando}
-        onChange={e => setForm({ ...form, email: e.target.value })}
-      />
+          <p>
+            {esEdicion
+              ? "Actualiza la información del arrendatario"
+              : "Registra un nuevo arrendatario"}
+          </p>
+        </div>
 
-      <input
-        type="tel"
-        placeholder="Teléfono (opcional)"
-        value={form.telefono}
-        disabled={loading || eliminando}
-        onChange={e => setForm({ ...form, telefono: e.target.value })}
-      />
+        <button
+          className="drawer-close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <div className="drawer-fields">
 
-      <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-        <button onClick={onClose} disabled={loading || eliminando}>
+        <div className="drawer-field">
+          <label>Nombre completo</label>
+
+          <input
+            type="text"
+            placeholder="Ej. Juan Pérez"
+            value={form.nombre}
+            disabled={loading || eliminando}
+            onChange={e =>
+              setForm({
+                ...form,
+                nombre: e.target.value
+              })
+            }
+          />
+        </div>
+
+        <div className="drawer-field">
+          <label>Correo electrónico</label>
+
+          <input
+            type="email"
+            placeholder="correo@ejemplo.com"
+            value={form.email}
+            disabled={loading || eliminando}
+            onChange={e =>
+              setForm({
+                ...form,
+                email: e.target.value
+              })
+            }
+          />
+        </div>
+
+        <div className="drawer-field">
+          <label>Teléfono</label>
+
+          <input
+            type="tel"
+            placeholder="(664) 123 4567"
+            value={form.telefono}
+            disabled={loading || eliminando}
+            onChange={e =>
+              setForm({
+                ...form,
+                telefono: e.target.value
+              })
+            }
+          />
+        </div>
+
+      </div>
+
+      {error && (
+        <div className="drawer-error">
+          <span>⚠</span>
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="drawer-actions">
+
+        <button
+          className="drawer-btn-cancel"
+          onClick={onClose}
+          disabled={loading || eliminando}
+        >
           Cancelar
         </button>
-        <button onClick={handleSubmit} disabled={loading || eliminando}>
-          {loading ? "Guardando..." : "Guardar"}
-        </button>
+
         {esEdicion && (
           <button
             onClick={handleEliminar}
             disabled={loading || eliminando}
+            className="drawer-btn-cancel"
             style={{
-              background: '#ef4444',
-              color: 'white',
-              marginLeft: 'auto'
+              borderColor: "#fecaca",
+              color: "#dc2626"
             }}
           >
-            {eliminando ? "Eliminando..." : "Eliminar"}
+            {eliminando
+              ? "Eliminando..."
+              : "Eliminar"}
           </button>
         )}
+
+        <button
+          className="drawer-btn-save"
+          onClick={handleSubmit}
+          disabled={loading || eliminando}
+        >
+          {loading
+            ? "Guardando..."
+            : "Guardar"}
+        </button>
+
       </div>
+
     </div>
-  );
+  </div>
+);
 }

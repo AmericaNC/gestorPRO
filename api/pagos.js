@@ -131,7 +131,8 @@ export default async function handler(req, res) {
             )
           ),
           locales (
-            numero
+            numero,
+            mantenimiento_mensual
           )
         `)
         .order('periodo', {

@@ -13,6 +13,7 @@ import ExpedientesPage from "./pages/ExpedientesPage";
 import IncrementosPage from "./pages/IncrementosPage";
 import DashboardPage from "./pages/DashboardPage";
 import ReportesPage from "./pages/ReportesPage";
+import MantenimientosPage from "./pages/MantenimientosPage";
 import "./App.css";
 
 const Placeholder = ({ titulo }) => (
@@ -79,6 +80,14 @@ export default function App() {
                 <ReportesPage />
               </RoleRoute>
             } />
+            <Route
+  path="/mantenimientos"
+  element={
+    <RoleRoute allowedRoles={["admin", "gestor"]}>
+      <MantenimientosPage />
+    </RoleRoute>
+  }
+/>
             <Route path="/configuracion" element={
               <RoleRoute allowedRoles={["admin"]}>
                 <UsersPage />

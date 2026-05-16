@@ -1,0 +1,101 @@
+/* ─────────────────────────────────────────────────────────
+   ContratosPage.css
+   Cards responsive para la tabla de contratos.
+   Importar junto con Page.css.
+───────────────────────────────────────────────────────── */
+
+/* ── Toggle desktop / móvil ──────────────────────────── */
+.ct-desktop { display: block; }
+.ct-mobile  { display: none;  }
+
+/* ── Acciones desktop ────────────────────────────────── */
+.ct-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Card base ───────────────────────────────────────── */
+.ct-card {
+  padding: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ct-card:last-child { border-bottom: none; }
+
+/* ── Cabecera: local + estatus + renta ───────────────── */
+.ct-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.ct-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ct-card-local {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ct-card-renta {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ct-card-renta-sub {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-left: 1px;
+}
+
+/* ── Arrendatario ────────────────────────────────────── */
+.ct-card-arrendatario {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Grid de datos ───────────────────────────────────── */
+.ct-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+  margin-bottom: 0.875rem;
+}
+
+/* Reutiliza .detail-item / .detail-label / .detail-value de Page.css */
+.ct-card-pdf-link {
+  font-size: 0.85rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+.ct-card-pdf-link:hover { text-decoration: underline; }
+
+/* ── Acciones ────────────────────────────────────────── */
+.ct-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ct-desktop { display: none;  }
+  .ct-mobile  { display: block; }
+}
+
+@media (min-width: 641px) {
+  .ct-mobile  { display: none;  }
+  .ct-desktop { display: block; }
+}

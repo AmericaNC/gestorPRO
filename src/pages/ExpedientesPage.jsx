@@ -1,504 +1,360 @@
 import { useState, useEffect, Fragment } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { apiUrl } from "../lib/apiClient";
-
+import { logAction } from "../lib/logAction";
 import "../styles/Page.css";
 
 const API_URL_CONTRATOS = apiUrl('/api/contratos');
 const API_URL_PAGOS     = apiUrl('/api/pagos');
 
 const ESTADO_COLORS = {
-  al_dia: {
-    color: '#16a34a',
-    bg: '#f0fdf4'
-  },
-
-  parcial: {
-    color: '#d97706',
-    bg: '#fffbeb'
-  },
-
-  pendiente: {
-    color: '#dc2626',
-    bg: '#fef2f2'
-  },
+  al_dia:   { color: '#16a34a', bg: '#f0fdf4' },
+  parcial:  { color: '#d97706', bg: '#fffbeb' },
+  pendiente:{ color: '#dc2626', bg: '#fef2f2' },
 };
 
+const fmt = (n) => `$${Number(n || 0).toLocaleString("es-MX")}`;
+
+const fmtFecha = (f) => f
+  ? new Date(f + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+  : "—";
+
 export default function ExpedientesPage() {
-
-  const [expedientes, setExpedientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const [eliminando, setEliminando] = useState(null);
-
-  const [restaurando, setRestaurando] = useState(null);
-
-  const [expandido, setExpandido] = useState(null);
-
-  const [pagosMap, setPagosMap] = useState({});
-
+  const [expedientes, setExpedientes]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [eliminando, setEliminando]     = useState(null);
+  const [restaurando, setRestaurando]   = useState(null);
+  const [expandido, setExpandido]       = useState(null);
+  const [pagosMap, setPagosMap]         = useState({});
   const [loadingPagos, setLoadingPagos] = useState(null);
 
   const getToken = async () => {
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
   };
 
   const fetchExpedientes = async () => {
     setLoading(true);
     setError(null);
-
     try {
-
       const token = await getToken();
-
       const response = await fetch(API_URL_CONTRATOS, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
       });
-
       const contentType = response.headers.get("content-type");
-
-      if (!contentType || !contentType.includes("application/json")) {
+      if (!contentType?.includes("application/json"))
         throw new Error("El servidor no respondió con JSON.");
-      }
-
       const result = await response.json();
-
-      const soloVencidos = (result.data || []).filter(
-        c => c.estatus === 'vencido' || c.estatus === 'cancelado'
-      );
-
-      setExpedientes(soloVencidos);
-
+      setExpedientes((result.data || []).filter(c => c.estatus === "vencido" || c.estatus === "cancelado"));
     } catch (err) {
-
       setError(err.message);
-
     } finally {
-
       setLoading(false);
     }
   };
 
   const fetchPagos = async (contrato_id) => {
-
     if (pagosMap[contrato_id]) return;
-
     setLoadingPagos(contrato_id);
-
     try {
-
       const token = await getToken();
-
-      const response = await fetch(
-        `${API_URL_PAGOS}?contrato_id=${contrato_id}`,
-        {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
+      const response = await fetch(`${API_URL_PAGOS}?contrato_id=${contrato_id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
       const result = await response.json();
-
-      setPagosMap(prev => ({
-        ...prev,
-        [contrato_id]: result.data || []
-      }));
-
+      setPagosMap(prev => ({ ...prev, [contrato_id]: result.data || [] }));
     } catch (err) {
-
-      console.error('Error cargando pagos:', err.message);
-
+      console.error("Error cargando pagos:", err.message);
     } finally {
-
       setLoadingPagos(null);
     }
   };
 
-  const toggleExpansion = (contrato_id) => {
-
-    if (expandido === contrato_id) {
-      setExpandido(null);
-
-    } else {
-      setExpandido(contrato_id);
-      fetchPagos(contrato_id);
-    }
+  const toggleExpansion = (id) => {
+    if (expandido === id) { setExpandido(null); }
+    else { setExpandido(id); fetchPagos(id); }
   };
 
-  const eliminarContrato = async (contrato) => {
-
-    const pagosPendientes = pagosMap[contrato.id]?.filter(p => p.estado === 'pendiente') || [];
-
-    const mensaje = `¿Eliminar permanentemente este contrato?
-
-Local: ${contrato.locales?.numero ?? contrato.local_id}
-Arrendatario: ${contrato.arrendatarios?.nombre ?? contrato.inquilino_id}
-Estatus: ${contrato.estatus}
-
-⚠️ Esta acción NO es reversible.
-⚠️ Se eliminarán pago(s) pendiente(s).
-⚠️ Se perderá todo el historial de pagos.
-
-¿Confirmar eliminación?`;
-
-    if (!window.confirm(mensaje)) return;
-
-    setEliminando(contrato.id);
-
+  const eliminarContrato = async (c) => {
+    const msg = `¿Eliminar permanentemente este contrato?\n\nLocal: ${c.locales?.numero ?? c.local_id}\nArrendatario: ${c.arrendatarios?.nombre ?? c.inquilino_id}\n\n⚠️ Esta acción NO es reversible.`;
+    if (!window.confirm(msg)) return;
+    setEliminando(c.id);
     try {
-
       const token = await getToken();
-
-      const response = await fetch(`${API_URL_CONTRATOS}?id=${contrato.id}`, {
+      const response = await fetch(`${API_URL_CONTRATOS}?id=${c.id}`, {
         method: "DELETE",
-
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+        headers: { "Authorization": `Bearer ${token}` }
       });
-
       const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Error al eliminar");
 
-      if (!response.ok) {
-        throw new Error(result.error || "Error al eliminar");
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      await logAction({
+        usuario_id: user?.id,
+        usuario_email: user?.email,
+        accion: "eliminar",
+        entidad: "contratos",
+        entidad_id: c.id,
+        descripcion: `Contrato Local #${c.locales?.numero ?? c.local_id} - ${c.arrendatarios?.nombre ?? c.inquilino_id} eliminado`
+      });
 
       fetchExpedientes();
-
-      // Limpiar pagos del mapa
-      setPagosMap(prev => {
-        const nuevo = { ...prev };
-        delete nuevo[contrato.id];
-        return nuevo;
-      });
-
-      if (expandido === contrato.id) {
-        setExpandido(null);
-      }
-
+      setPagosMap(prev => { const n = { ...prev }; delete n[c.id]; return n; });
+      if (expandido === c.id) setExpandido(null);
     } catch (err) {
-
       alert("Error: " + err.message);
-
     } finally {
-
       setEliminando(null);
     }
   };
 
-  const restaurarContrato = async (contrato) => {
-
-    if (
-      !window.confirm(
-        `¿Restaurar el contrato del local ${
-          contrato.locales?.numero ?? contrato.local_id
-        } a Activo?`
-      )
-    ) return;
-
-    setRestaurando(contrato.id);
-
+  const restaurarContrato = async (c) => {
+    if (!window.confirm(`¿Restaurar el contrato del local ${c.locales?.numero ?? c.local_id} a Activo?`)) return;
+    setRestaurando(c.id);
     try {
-
       const token = await getToken();
-
       const response = await fetch(API_URL_CONTRATOS, {
         method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ id: c.id, estatus: "activo" })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Error al restaurar");
 
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-
-        body: JSON.stringify({
-          id: contrato.id,
-          estatus: "activo"
-        })
+      const { data: { user } } = await supabase.auth.getUser();
+      await logAction({
+        usuario_id: user?.id,
+        usuario_email: user?.email,
+        accion: "restaurar",
+        entidad: "contratos",
+        entidad_id: c.id,
+        descripcion: `Contrato Local #${c.locales?.numero ?? c.local_id} - ${c.arrendatarios?.nombre ?? c.inquilino_id} restaurado a activo`
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Error al restaurar");
-      }
-
       fetchExpedientes();
-
     } catch (err) {
-
       alert("Error: " + err.message);
-
     } finally {
-
       setRestaurando(null);
     }
   };
 
-  useEffect(() => {
-    fetchExpedientes();
-  }, []);
+  useEffect(() => { fetchExpedientes(); }, []);
+
+  // ── Sub-componente: tabla de pagos ─────────────────────────
+  const TablaPagos = ({ contratoId }) => {
+    const pagos = pagosMap[contratoId];
+    if (loadingPagos === contratoId) return <p className="small-message">Cargando pagos…</p>;
+    if (!pagos || pagos.length === 0) return <p className="small-message">Sin registros de pagos.</p>;
+
+    return (
+      <table className="payments-table">
+        <thead>
+          <tr>
+            <th>Periodo</th>
+            <th>Esperado</th>
+            <th>Pagado</th>
+            <th>Diferencia</th>
+            <th>Estado</th>
+            <th>Fecha pago</th>
+            <th>Método</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pagos.map(p => {
+            const estilo = ESTADO_COLORS[p.estado] || { color: "#888", bg: "#f3f4f6" };
+            return (
+              <tr key={p.id}>
+                <td>{p.periodo}</td>
+                <td>{fmt(p.monto_esperado)}</td>
+                <td>{fmt(p.monto_pagado)}</td>
+                <td className={p.diferencia < 0 ? "diff-negative" : "diff-positive"}>
+                  {fmt(p.diferencia)}
+                </td>
+                <td>
+                  <span className="payment-status" style={{ color: estilo.color, background: estilo.bg }}>
+                    {p.estado}
+                  </span>
+                </td>
+                <td>{p.fecha_pago || "—"}</td>
+                <td>{p.metodo_pago || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
+  };
+
+  // ── Sub-componente: pagos resumidos para móvil ─────────────
+  const PagosMobile = ({ contratoId }) => {
+    const pagos = pagosMap[contratoId];
+    if (loadingPagos === contratoId) return <p className="small-message">Cargando pagos…</p>;
+    if (!pagos || pagos.length === 0) return <p className="small-message">Sin registros de pagos.</p>;
+
+    return pagos.map(p => {
+      const estilo = ESTADO_COLORS[p.estado] || { color: "#888", bg: "#f3f4f6" };
+      return (
+        <div className="exp-pago-row" key={p.id}>
+          <span className="exp-pago-periodo">{p.periodo}</span>
+          <span className="exp-pago-monto">{fmt(p.monto_pagado)} / {fmt(p.monto_esperado)}</span>
+          <span className="payment-status" style={{ color: estilo.color, background: estilo.bg }}>
+            {p.estado}
+          </span>
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="container">
 
       <div className="page-header">
         <div>
-          <h1>Expedientes</h1>
-
-          <p>
-            Contratos vencidos y cancelados
-          </p>
+          <h1 className="page-title">Expedientes</h1>
+          <p>Contratos vencidos y cancelados</p>
         </div>
       </div>
 
       <div className="table-card">
 
         {loading ? (
-
-          <div className="state-message">
-            <p>Cargando expedientes...</p>
-          </div>
-
+          <div className="state-message"><p>Cargando expedientes…</p></div>
         ) : error ? (
-
-          <div className="state-message error">
-            <p>{error}</p>
-          </div>
-
+          <div className="state-message error"><p>{error}</p></div>
         ) : expedientes.length === 0 ? (
-
-          <div className="state-message">
-            <p>No hay expedientes por el momento.</p>
-          </div>
-
+          <div className="state-message"><p>No hay expedientes por el momento.</p></div>
         ) : (
+          <>
+            {/* ── DESKTOP ── */}
+            <div className="exp-desktop table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 32 }}></th>
+                    <th>Local</th>
+                    <th>Arrendatario</th>
+                    <th>Inicio</th>
+                    <th>Vencimiento</th>
+                    <th>Renta</th>
+                    <th>Estatus</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expedientes.map(c => (
+                    <Fragment key={c.id}>
+                      <tr
+                        className={`expandable-row ${expandido === c.id ? "expanded" : ""}`}
+                        onClick={() => toggleExpansion(c.id)}
+                      >
+                        <td className="expand-icon">{expandido === c.id ? "▼" : "▶"}</td>
+                        <td><strong>{c.locales?.numero ?? c.local_id}</strong></td>
+                        <td>{c.arrendatarios?.nombre ?? c.inquilino_id}</td>
+                        <td>{fmtFecha(c.fecha_inicio)}</td>
+                        <td>{fmtFecha(c.fecha_vencimiento)}</td>
+                        <td className="col-money">{fmt(c.renta)}</td>
+                        <td>
+                          <span className={`status ${c.estatus?.toLowerCase()}`}>{c.estatus}</span>
+                        </td>
+                        <td onClick={e => e.stopPropagation()}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              className="btn-expediente"
+                              onClick={() => restaurarContrato(c)}
+                              disabled={restaurando === c.id || eliminando === c.id}
+                            >
+                              {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
+                            </button>
+                            <button
+                              className="btn-danger"
+                              onClick={() => eliminarContrato(c)}
+                              disabled={restaurando === c.id || eliminando === c.id}
+                            >
+                              {eliminando === c.id ? "Eliminando…" : "Eliminar"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
 
-          <table className="data-table">
+                      {expandido === c.id && (
+                        <tr className="expanded-content-row">
+                          <td colSpan={8}>
+                            <div className="expanded-content">
+                              <h4>Historial de Pagos</h4>
+                              <TablaPagos contratoId={c.id} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            <thead>
-              <tr>
-                <th style={{ width: '40px' }}></th>
-                <th>Local</th>
-                <th>Arrendatario</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Vencimiento</th>
-                <th>Renta</th>
-                <th>Estatus</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              {expedientes.map((c) => (
-
-                <Fragment key={c.id}>
-
-                  {/* FILA PRINCIPAL */}
-
-                  <tr
-                    className={`expandable-row ${
-                      expandido === c.id ? 'expanded' : ''
-                    }`}
-                    onClick={() => toggleExpansion(c.id)}
-                  >
-
-                    <td className="expand-icon">
-                      {expandido === c.id ? '▼' : '▶'}
-                    </td>
-
-                    <td>
-                      {c.locales?.numero ?? c.local_id}
-                    </td>
-
-                    <td>
-                      {c.arrendatarios?.nombre ?? c.inquilino_id}
-                    </td>
-
-                    <td>{c.fecha_inicio}</td>
-
-                    <td>{c.fecha_vencimiento}</td>
-
-                    <td>
-                      ${Number(c.renta).toLocaleString()}
-                    </td>
-
-                    <td>
-                      <span className={`status ${c.estatus?.toLowerCase()}`}>
-                        {c.estatus}
+            {/* ── MÓVIL ── */}
+            <div className="exp-mobile">
+              {expedientes.map(c => (
+                <div className="exp-card" key={c.id}>
+                  <div className="exp-card-header" onClick={() => toggleExpansion(c.id)}>
+                    <div className="exp-card-left">
+                      <div className="exp-card-title">
+                        <span className="exp-card-name">Local {c.locales?.numero ?? c.local_id}</span>
+                        <span className={`status ${c.estatus?.toLowerCase()}`}>{c.estatus}</span>
+                      </div>
+                      <span className="exp-card-sub">
+                        {c.arrendatarios?.nombre ?? c.inquilino_id} · {fmt(c.renta)}/mes
                       </span>
-                    </td>
+                    </div>
+                    <span className={`chevron ${expandido === c.id ? "open" : ""}`}>›</span>
+                  </div>
 
-                    <td onClick={(e) => e.stopPropagation()}>
+                  {expandido === c.id && (
+                    <div className="exp-card-body">
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Fecha inicio</span>
+                          <span className="detail-value">{fmtFecha(c.fecha_inicio)}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Vencimiento</span>
+                          <span className="detail-value">{fmtFecha(c.fecha_vencimiento)}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Renta mensual</span>
+                          <span className="detail-value highlight">{fmt(c.renta)}</span>
+                        </div>
+                      </div>
 
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <p className="exp-pagos-title">Historial de pagos</p>
+                      <PagosMobile contratoId={c.id} />
 
+                      <div className="exp-card-actions">
                         <button
                           className="btn-expediente"
                           onClick={() => restaurarContrato(c)}
                           disabled={restaurando === c.id || eliminando === c.id}
                         >
-                          {restaurando === c.id
-                            ? "Restaurando..."
-                            : "← Restaurar"}
+                          {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
                         </button>
-
                         <button
                           className="btn-danger"
                           onClick={() => eliminarContrato(c)}
                           disabled={restaurando === c.id || eliminando === c.id}
                         >
-                          {eliminando === c.id
-                            ? "Eliminando..."
-                            : "🗑️ Eliminar"}
+                          {eliminando === c.id ? "Eliminando…" : "Eliminar"}
                         </button>
-
                       </div>
-
-                    </td>
-
-                  </tr>
-
-                  {/* PAGOS */}
-
-                  {expandido === c.id && (
-
-                    <tr className="expanded-content-row">
-
-                      <td colSpan={8}>
-
-                        <div className="expanded-content">
-
-                          <h4>Historial de Pagos</h4>
-
-                          {loadingPagos === c.id ? (
-
-                            <p className="small-message">
-                              Cargando pagos...
-                            </p>
-
-                          ) : !pagosMap[c.id] || pagosMap[c.id].length === 0 ? (
-
-                            <p className="small-message">
-                              Sin registros de pagos.
-                            </p>
-
-                          ) : (
-
-                            <table className="payments-table">
-
-                              <thead>
-                                <tr>
-                                  <th>Periodo</th>
-                                  <th>Esperado</th>
-                                  <th>Pagado</th>
-                                  <th>Diferencia</th>
-                                  <th>Estado</th>
-                                  <th>Fecha pago</th>
-                                  <th>Método</th>
-                                </tr>
-                              </thead>
-
-                              <tbody>
-
-                                {pagosMap[c.id].map((p) => {
-
-                                  const estilo =
-                                    ESTADO_COLORS[p.estado] || {
-                                      color: '#888',
-                                      bg: '#f3f4f6'
-                                    };
-
-                                  return (
-
-                                    <tr key={p.id}>
-
-                                      <td>{p.periodo}</td>
-
-                                      <td>
-                                        ${Number(
-                                          p.monto_esperado
-                                        ).toLocaleString()}
-                                      </td>
-
-                                      <td>
-                                        ${Number(
-                                          p.monto_pagado || 0
-                                        ).toLocaleString()}
-                                      </td>
-
-                                      <td
-                                        style={{
-                                          color:
-                                            p.diferencia < 0
-                                              ? '#dc2626'
-                                              : '#16a34a'
-                                        }}
-                                      >
-                                        ${Number(
-                                          p.diferencia || 0
-                                        ).toLocaleString()}
-                                      </td>
-
-                                      <td>
-
-                                        <span
-                                          className="payment-status"
-                                          style={{
-                                            color: estilo.color,
-                                            background: estilo.bg
-                                          }}
-                                        >
-                                          {p.estado}
-                                        </span>
-
-                                      </td>
-
-                                      <td>
-                                        {p.fecha_pago || '—'}
-                                      </td>
-
-                                      <td>
-                                        {p.metodo_pago || '—'}
-                                      </td>
-
-                                    </tr>
-                                  );
-                                })}
-
-                              </tbody>
-
-                            </table>
-                          )}
-
-                        </div>
-
-                      </td>
-
-                    </tr>
+                    </div>
                   )}
-
-                </Fragment>
+                </div>
               ))}
-
-            </tbody>
-
-          </table>
+            </div>
+          </>
         )}
-
       </div>
-
     </div>
   );
 }

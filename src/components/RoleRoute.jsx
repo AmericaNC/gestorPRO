@@ -2,9 +2,9 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function RoleRoute({ children, allowedRoles = [] }) {
-  const { user, loading } = useAuth()
+  const { user, loading, roleResolved } = useAuth()  // ← añadir roleResolved
 
-  if (loading) {
+  if (loading || !roleResolved) {   // ← mismo guard que ProtectedRoute
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -16,11 +16,8 @@ export default function RoleRoute({ children, allowedRoles = [] }) {
   }
 
   if (!user) return <Navigate to="/login" replace />
-
-  // El rol ya viene resuelto desde la tabla en AuthContext
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/sin-permisos" replace />
-  }
+  if (!user.role) return <Navigate to="/sin-permisos" replace />
+  if (!allowedRoles.includes(user.role)) return <Navigate to="/sin-permisos" replace />
 
   return children
 }
