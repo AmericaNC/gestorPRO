@@ -42,13 +42,12 @@ export default function LogsPanel() {
   }, []);
 
   const formatFecha = (fecha) => {
-
-    return new Date(fecha).toLocaleString("es-MX", {
-      dateStyle: "short",
-      timeStyle: "short"
-    });
-
-  };
+  return new Date(fecha).toLocaleString("es-MX", {
+    timeZone: "America/Tijuana",  // ← esto es todo
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+};
 
   return (
 
