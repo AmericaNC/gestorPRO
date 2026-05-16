@@ -305,27 +305,27 @@ export default function MantenimientoDrawer({
 
           </div>
 
-          {/* Metodo pago */}
-          <div className="drawer-field">
+         {/* Metodo pago */}
+<div className="drawer-field">
+  <label>
+    Método de pago
+  </label>
 
-            <label>
-              Método de pago
-            </label>
-
-            <input
-              type="text"
-              placeholder="Transferencia, efectivo..."
-              value={form.metodo_pago}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  metodo_pago: e.target.value
-                })
-              }
-            />
-
-          </div>
-
+  <select
+    value={form.metodo_pago}
+    onChange={(e) =>
+      setForm({
+        ...form,
+        metodo_pago: e.target.value
+      })
+    }
+  >
+    <option value="">Selecciona método de pago</option>
+    <option value="transferencia">Transferencia</option>
+    <option value="efectivo">Efectivo</option>
+    <option value="cheque">Cheque</option>
+  </select>
+</div>
           {/* Notas */}
           <div className="drawer-field">
 
