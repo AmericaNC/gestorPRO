@@ -260,6 +260,15 @@ export default function ExpedientesPage() {
                         </td>
                         <td onClick={e => e.stopPropagation()}>
                           <div style={{ display: "flex", gap: 8 }}>
+                            {/* ── Ver PDF ── */}
+                            {c.contrato_pdf_url && (
+                              <button
+                                className="btn-edit"
+                                onClick={() => window.open(c.contrato_pdf_url, "_blank")}
+                              >
+                                Ver PDF
+                              </button>
+                            )}
                             <button
                               className="btn-expediente"
                               onClick={() => restaurarContrato(c)}
@@ -326,6 +335,20 @@ export default function ExpedientesPage() {
                           <span className="detail-label">Renta mensual</span>
                           <span className="detail-value highlight">{fmt(c.renta)}</span>
                         </div>
+                        {/* ── Ver PDF móvil ── */}
+                        {c.contrato_pdf_url && (
+                          <div className="detail-item">
+                            <span className="detail-label">Contrato</span>
+                            <a
+                              href={c.contrato_pdf_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ct-card-pdf-link"
+                            >
+                              📄 Ver PDF
+                            </a>
+                          </div>
+                        )}
                       </div>
 
                       <p className="exp-pagos-title">Historial de pagos</p>

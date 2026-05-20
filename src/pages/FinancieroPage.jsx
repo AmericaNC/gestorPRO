@@ -79,16 +79,13 @@ export default function FinancieroPage() {
     return true;
   });
 
-  const contratosActivosIds  = contratos
-    .filter(c => c.estatus === 'activo')
-    .map(c => c.id);
+  const contratosActivosIds    = contratos.filter(c => c.estatus === 'activo').map(c => c.id);
+  const contratosVencidosIds   = contratos.filter(c => c.estatus === 'vencido').map(c => c.id);
+  const contratosCanceladosIds = contratos.filter(c => c.estatus === 'cancelado').map(c => c.id);
 
-  const contratosVencidosIds = contratos
-    .filter(c => c.estatus === 'vencido' || c.estatus === 'cancelado')
-    .map(c => c.id);
-
-  const pagosActivos  = pagosFiltrados.filter(p => contratosActivosIds.includes(p.contrato_id));
-  const pagosVencidos = pagosFiltrados.filter(p => contratosVencidosIds.includes(p.contrato_id));
+  const pagosActivos    = pagosFiltrados.filter(p => contratosActivosIds.includes(p.contrato_id));
+  const pagosVencidos   = pagosFiltrados.filter(p => contratosVencidosIds.includes(p.contrato_id));
+  const pagosCancelados = pagosFiltrados.filter(p => contratosCanceladosIds.includes(p.contrato_id));
 
   // ── Resumen ──────────────────────────────────────────────
   const totalEsperado  = pagosActivos.reduce((s, p) => s + Number(p.monto_esperado || 0), 0);
@@ -220,7 +217,7 @@ export default function FinancieroPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Financiero</h1>
-          <p>Gestión de pagos y estados financieros</p>
+          <p>Gestión de pagos y estados financieros. Se muestra el estado de los pagos en estado activo.</p>
         </div>
       </div>
 
@@ -297,13 +294,13 @@ export default function FinancieroPage() {
             ))}
           </div>
 
-          {/* Vencidos */}
+          {/* Vencidos — conAccion habilitado para registrar pagos pendientes */}
           <div>
             <div className="table-card financiero-group">
               <button className="financiero-expand-btn"
                 onClick={() => setVencidosExpandido(!vencidosExpandido)}>
                 <span className="financiero-icon">{vencidosExpandido ? '▼' : '▶'}</span>
-                Contratos vencidos / cancelados
+                Contratos vencidos
                 <span className="financiero-count" style={{ marginLeft: 'auto' }}>
                   {pagosVencidos.length} registros
                 </span>
@@ -314,8 +311,42 @@ export default function FinancieroPage() {
                   <div className="state-message"><p>Sin registros.</p></div>
                 ) : (
                   <>
-                    <TablaPagosDesktop lista={pagosVencidos} />
-                    <TablaPagosMobile  lista={pagosVencidos} />
+                    <TablaPagosDesktop lista={pagosVencidos} conAccion />
+                    <TablaPagosMobile  lista={pagosVencidos} conAccion />
+                  </>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Cancelados — sin acción de registro */}
+          <div style={{ marginTop: '1rem' }}>
+            <div className="table-card financiero-group">
+              <button
+                className="financiero-expand-btn"
+                onClick={() =>
+                  setExpandido(prev => ({
+                    ...prev,
+                    cancelados: !prev.cancelados
+                  }))
+                }
+              >
+                <span className="financiero-icon">
+                  {expandido.cancelados ? '▼' : '▶'}
+                </span>
+                Contratos cancelados
+                <span className="financiero-count" style={{ marginLeft: 'auto' }}>
+                  {pagosCancelados.length} registros
+                </span>
+              </button>
+
+              {expandido.cancelados && (
+                pagosCancelados.length === 0 ? (
+                  <div className="state-message"><p>Sin registros.</p></div>
+                ) : (
+                  <>
+                    <TablaPagosDesktop lista={pagosCancelados} />
+                    <TablaPagosMobile  lista={pagosCancelados} />
                   </>
                 )
               )}

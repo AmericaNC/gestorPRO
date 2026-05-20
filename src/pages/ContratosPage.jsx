@@ -54,38 +54,61 @@ export default function ContratosPage() {
       setLoading(false);
     }
   };
+const enviarAExpediente = async (contrato) => {
 
-  const enviarAExpediente = async (contrato) => {
-    if (!window.confirm(`¿Enviar el contrato del local ${contrato.local_id} a Expedientes?`)) return;
-    setEnviando(contrato.id);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const response = await fetch(API_URL_GET, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ id: contrato.id, estatus: "vencido" })
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Error al actualizar");
+  if (!window.confirm(
+    `¿Enviar el contrato del local ${contrato.local_id} a Expedientes?`
+  )) return;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      await logAction({
-        usuario_id: user?.id,
-        usuario_email: user?.email,
-        accion: "enviar_a_expediente",
-        entidad: "contratos",
-        entidad_id: contrato.id,
-        descripcion: `Contrato Local #${contrato.locales?.numero ?? contrato.local_id} - ${contrato.arrendatarios?.nombre ?? contrato.inquilino_id} enviado a expediente`
-      });
+  setEnviando(contrato.id);
 
-      fetchContratos();
-    } catch (err) {
-      alert("Error: " + err.message);
-    } finally {
-      setEnviando(null);
-    }
-  };
+  try {
+
+    const hoy = new Date();
+
+    const vencimiento = new Date(
+      contrato.fecha_vencimiento + "T23:59:59"
+    );
+
+    const nuevoEstatus =
+      hoy > vencimiento
+        ? "vencido"
+        : "cancelado";
+
+    const { data: { session } } =
+      await supabase.auth.getSession();
+
+    const token = session?.access_token;
+
+    const response = await fetch(API_URL_GET, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        id: contrato.id,
+        estatus: nuevoEstatus
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok)
+      throw new Error(result.error || "Error al actualizar");
+
+    fetchContratos();
+
+  } catch (err) {
+
+    alert("Error: " + err.message);
+
+  } finally {
+
+    setEnviando(null);
+
+  }
+};
 
   const abrirEditar = (c) => {
     setSelectedContrato(c);

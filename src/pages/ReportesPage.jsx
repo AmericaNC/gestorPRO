@@ -5,6 +5,9 @@ import { apiUrl } from "../lib/apiClient";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import "../styles/ReportesPage.css";
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import ExportarExcelReporte from "../components/Exportarexcelreporte";
 
 const API_URL_PAGOS       = apiUrl('/api/pagos');
 const API_URL_CONTRATOS   = apiUrl('/api/contratos');
@@ -52,7 +55,135 @@ export default function ReportesPage() {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
   };
+const descargarExcel = async (tipo) => {
 
+  const wb = XLSX.utils.book_new();
+
+  if (tipo === 'financiero') {
+
+    // =========================
+    // RESUMEN GENERAL
+    // =========================
+    const resumenData = [
+      {
+        Concepto: 'Total esperado',
+        Monto: totalEsperado,
+      },
+      {
+        Concepto: 'Total cobrado',
+        Monto: totalCobrado,
+      },
+      {
+        Concepto: 'Diferencia',
+        Monto: totalDiferencia,
+      },
+      {
+        Concepto: 'Gastos mantenimiento',
+        Monto: totalMantenimiento,
+      },
+      {
+  Concepto: 'Pendiente por cobrar',
+  Monto: totalPendiente,
+}
+    ];
+
+    const wsResumen = XLSX.utils.json_to_sheet(resumenData);
+
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+    // =========================
+    // ARRENDATARIOS
+    // =========================
+    const arrendatariosData = resumenPorArrendatario.map(r => ({
+      Arrendatario: r.nombre,
+      Esperado: r.esperado,
+      Cobrado: r.cobrado,
+      Diferencia: r.cobrado - r.esperado,
+      Pendientes: r.pendientes,
+    }));
+
+    const wsArr = XLSX.utils.json_to_sheet(arrendatariosData);
+
+    XLSX.utils.book_append_sheet(wb, wsArr, 'Arrendatarios');
+
+    // =========================
+    // MANTENIMIENTO
+    // =========================
+    const mantenimientoData = detalleMantenimiento.flatMap(c =>
+      c.desglose.map(d => ({
+        Local: c.contrato.locales?.numero ?? c.contrato.local_id,
+        Mes: d.mes,
+        Tipo: d.tipo,
+        Monto: d.monto,
+        Detalle:
+          d.tipo === 'REAL'
+            ? d.gastos.map(g =>
+                `${g.categoria}: ${g.concepto}`
+              ).join(' | ')
+            : 'SIMULADO'
+      }))
+    );
+
+    const wsMant = XLSX.utils.json_to_sheet(mantenimientoData);
+
+    XLSX.utils.book_append_sheet(wb, wsMant, 'Mantenimiento');
+
+    // =========================
+    // EXPORTAR
+    // =========================
+    const excelBuffer = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'array'
+    });
+
+    const fileData = new Blob(
+      [excelBuffer],
+      {
+        type:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    );
+
+    saveAs(fileData, `reporte-financiero-${hoyISO()}.xlsx`);
+
+  }
+
+  else if (tipo === 'contratos') {
+
+    const contratosData = contratosReporte.map(c => ({
+      Local: c.locales?.numero ?? c.local_id,
+      Arrendatario: c.arrendatarios?.nombre ?? '—',
+      Inicio: c.fecha_inicio,
+      Vencimiento: c.fecha_vencimiento,
+      Renta: c.renta,
+      Estatus: c.estatus,
+    }));
+
+    const wsContratos = XLSX.utils.json_to_sheet(contratosData);
+
+    XLSX.utils.book_append_sheet(
+      wb,
+      wsContratos,
+      'Contratos'
+    );
+
+    const excelBuffer = XLSX.write(wb, {
+      bookType: 'xlsx',
+      type: 'array'
+    });
+
+    const fileData = new Blob(
+      [excelBuffer],
+      {
+        type:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    );
+
+    saveAs(fileData, `reporte-contratos-${hoyISO()}.xlsx`);
+  }
+
+};
   const logPdfDownload = async (tipo) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -97,28 +228,69 @@ export default function ReportesPage() {
 
   useEffect(() => { fetchData(); }, []);
 // ── Totales siempre desde contratos activos (sin filtro de fecha) ──
-  const contratosActivosIds = contratos.filter(c => c.estatus === 'activo').map(c => c.id);
-  const pagosActivos        = pagos.filter(p => contratosActivosIds.includes(p.contrato_id));
+const contratosCobrables = contratos.filter(c =>
+  c.estatus === 'activo' ||
+  c.estatus === 'vencido'
+);
 
-  const totalEsperado   = pagosActivos.reduce((s, p) => s + Number(p.monto_esperado || 0), 0);
-  const totalCobrado    = pagosActivos.reduce((s, p) => s + Number(p.monto_pagado   || 0), 0);
-  const totalDiferencia = totalCobrado - totalEsperado;
+const contratosCobrablesIds =
+  contratosCobrables.map(c => c.id);
 
-  // ── Resumen por arrendatario — también desde contratos activos ──
-  const resumenPorArrendatario = Object.values(
-    pagosActivos.reduce((acc, pago) => {
-      const nombre = pago.contratos?.arrendatarios?.nombre ?? pago.contrato_id;
-      if (!acc[nombre]) acc[nombre] = { nombre, esperado: 0, cobrado: 0, pendientes: 0 };
-      acc[nombre].esperado  += parseFloat(pago.monto_esperado ?? 0);
-      acc[nombre].cobrado   += parseFloat(pago.monto_pagado   ?? 0);
-      if (pago.estado === 'pendiente' || pago.estado === 'parcial') acc[nombre].pendientes++;
-      return acc;
-    }, {})
-  );
+const pagosCobrables = pagos.filter(p =>
+  contratosCobrablesIds.includes(p.contrato_id)
+);
+const totalEsperado = pagosCobrables.reduce(
+  (s, p) => s + Number(p.monto_esperado || 0),
+  0
+);
 
+const totalCobrado = pagosCobrables.reduce(
+  (s, p) => s + Number(p.monto_pagado || 0),
+  0
+);
+
+const totalDiferencia =
+  totalCobrado - totalEsperado;
+
+// ── Resumen por arrendatario ──
+const resumenPorArrendatario = Object.values(
+  pagosCobrables.reduce((acc, pago) => {
+
+    const nombre =
+      pago.contratos?.arrendatarios?.nombre ??
+      pago.contrato_id;
+
+    if (!acc[nombre]) {
+      acc[nombre] = {
+        nombre,
+        esperado: 0,
+        cobrado: 0,
+        pendientes: 0
+      };
+    }
+
+    acc[nombre].esperado += parseFloat(
+      pago.monto_esperado ?? 0
+    );
+
+    acc[nombre].cobrado += parseFloat(
+      pago.monto_pagado ?? 0
+    );
+
+    if (
+      pago.estado === 'pendiente' ||
+      pago.estado === 'parcial'
+    ) {
+      acc[nombre].pendientes++;
+    }
+
+    return acc;
+
+  }, {})
+);
   // ── Mantenimiento — SÍ usa filtro de periodo ──
   const localIdsConContrato = contratos
-    .filter(c => c.estatus === 'activo')
+    .filter(c => c.estatus === 'activo' || c.estatus === 'vencido')
     .map(c => c.local_id);
 
   const gastosHuerfanos = gastos.filter(g => {
@@ -134,7 +306,7 @@ export default function ReportesPage() {
 
   const detalleMantenimiento = [
     ...contratos
-      .filter(c => c.estatus === 'activo')
+      .filter(c => c.estatus === 'activo' || c.estatus === 'vencido')
       .map(c => {
         const rangeStart = finDesde || c.fecha_inicio;
         const rangeEnd   = finHasta || c.fecha_vencimiento;
@@ -196,9 +368,25 @@ export default function ReportesPage() {
   const hoy  = new Date();
   const en90 = new Date(); en90.setDate(hoy.getDate() + 90);
   const proximosAVencer = contratos
-    .filter(c => { const v = new Date(c.fecha_vencimiento); return c.estatus === 'activo' && v >= hoy && v <= en90; })
-    .sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento));
+  .filter(c => {
 
+    const v = new Date(c.fecha_vencimiento);
+
+    return (
+      (
+        c.estatus === 'activo' ||
+        c.estatus === 'vencido'
+      ) &&
+      v >= hoy &&
+      v <= en90
+    );
+
+  })
+  .sort(
+    (a, b) =>
+      new Date(a.fecha_vencimiento) -
+      new Date(b.fecha_vencimiento)
+  );
   // ── PDF ──
   const descargarPDF = async (tipo) => {
     const doc = new jsPDF();
@@ -208,15 +396,15 @@ export default function ReportesPage() {
       doc.setFontSize(16); doc.text('Reporte Financiero', 14, 20);
       doc.setFontSize(10);
       doc.text(`Generado: ${fechaGenerado}`, 14, 28);
-      doc.text('Ingresos y balance: todos los contratos activos (sin filtro de fecha)', 14, 34);
+      doc.text('Ingresos y balance: todos los contratos activos y vencidos (sin filtro de fecha)', 14, 34);
       doc.text(`Gastos de mantenimiento: periodo ${finDesde} al ${finHasta}`, 14, 40);
 
       autoTable(doc, {
         startY: 50,
         head: [['Concepto', 'Alcance', 'Monto']],
         body: [
-          ['Total esperado',            'Contratos activos · acumulado', formatMXN(totalEsperado)],
-          ['Total cobrado',             'Contratos activos · acumulado', formatMXN(totalCobrado)],
+          ['Total esperado',            'Contratos activos y vencidos · acumulado', formatMXN(totalEsperado)],
+          ['Total cobrado',             'Contratos activos y vencidos · acumulado', formatMXN(totalCobrado)],
           ['Diferencia',                'Cobrado vs esperado',           formatMXN(totalDiferencia)],
           ['Gastos de mantenimiento',   `Periodo ${finDesde} – ${finHasta}`, formatMXN(totalMantenimiento)],
         ],
@@ -268,7 +456,17 @@ export default function ReportesPage() {
       await logPdfDownload(tipo);
     }
   };
-
+const totalPendiente = pagosCobrables
+  .filter(p =>
+    p.estado === 'pendiente' ||
+    p.estado === 'parcial'
+  )
+  .reduce((s, p) =>
+    s + (
+      Number(p.monto_esperado || 0) -
+      Number(p.monto_pagado || 0)
+    ),
+  0);
   if (loading) return <div style={{ padding: '20px' }}><p>Cargando...</p></div>;
   if (error)   return <div style={{ padding: '20px' }}><p style={{ color: 'red' }}>{error}</p></div>;
 
@@ -288,13 +486,21 @@ export default function ReportesPage() {
           <button className="btn-primary" onClick={() => descargarPDF('financiero')}>
             ↓ Descargar PDF
           </button>
+         <ExportarExcelReporte
+  pagos={pagos}
+  contratos={contratos}
+  gastos={gastos}
+  detalleMantenimiento={detalleMantenimiento}
+  finDesde={finDesde}
+  finHasta={finHasta}
+/>
         </div>
 
         {/* ── Aviso de alcance ── */}
         <div className="reportes-scope-banner">
           <span className="reportes-scope-icon">ℹ</span>
           <span>
-            <strong>Ingresos y balance</strong> consideran todos los contratos activos, sin importar las fechas seleccionadas.
+            <strong>Ingresos y balance</strong> consideran todos los contratos activos y vencidos, sin importar las fechas seleccionadas.
             El filtro de periodo <strong>solo aplica a los gastos de mantenimiento</strong>.
           </span>
         </div>
@@ -303,14 +509,14 @@ export default function ReportesPage() {
         <div className="reportes-summary">
           <div className="reportes-card">
             <p className="reportes-card-label">
-              Total esperado <span className="reportes-freq">· contratos activos · acumulado</span>
+              Total esperado <span className="reportes-freq">· contratos activos y vencidos acumulado</span>
             </p>
             <p className="reportes-card-value">{formatMXN(totalEsperado)}</p>
           </div>
 
           <div className="reportes-card">
             <p className="reportes-card-label">
-              Total cobrado <span className="reportes-freq">· contratos activos · acumulado</span>
+              Total cobrado <span className="reportes-freq">· contratos activos y vencidos acumulado</span>
             </p>
             <p className="reportes-card-value success">{formatMXN(totalCobrado)}</p>
           </div>
@@ -323,6 +529,18 @@ export default function ReportesPage() {
               {formatMXN(totalDiferencia)}
             </p>
           </div>
+          <div className="reportes-card">
+  <p className="reportes-card-label">
+    Pendiente por cobrar
+    <span className="reportes-freq">
+      · activos y vencidos
+    </span>
+  </p>
+
+  <p className="reportes-card-value warning">
+    {formatMXN(totalPendiente)}
+  </p>
+</div>
         </div>
 
         {/* Tabla por arrendatario — sin filtro */}
@@ -458,6 +676,7 @@ export default function ReportesPage() {
           <button className="btn-primary" onClick={() => descargarPDF('contratos')}>
             ↓ Descargar PDF
           </button>
+         
         </div>
 
         <div className="reportes-row">

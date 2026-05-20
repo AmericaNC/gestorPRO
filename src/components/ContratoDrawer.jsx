@@ -184,16 +184,30 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
       if (tieneSolapamiento)
         throw new Error("Ya existe un contrato activo o vencido para ese local en esas fechas.");
 
-      const pdfUrl = await subirPDF();
+     const pdfUrl = await subirPDF();
 
-      const payload = {
-        local_id:          Number(form.local_id),
-        inquilino_id:      form.inquilino_id,
-        fecha_inicio:      form.fecha_inicio,
-        fecha_vencimiento: form.fecha_vencimiento,
-        contrato_pdf_url:  pdfUrl || null
-      };
-      if (esEdicion) payload.id = contrato.id;
+const hoy = new Date();
+
+const vencimiento = new Date(
+  form.fecha_vencimiento + "T23:59:59"
+);
+
+const estatusAutomatico =
+  vencimiento < hoy
+    ? "vencido"
+    : "activo";
+
+const payload = {
+  local_id:          Number(form.local_id),
+  inquilino_id:      form.inquilino_id,
+  fecha_inicio:      form.fecha_inicio,
+  fecha_vencimiento: form.fecha_vencimiento,
+  estatus:           estatusAutomatico,
+  contrato_pdf_url:  pdfUrl || null
+};
+
+if (esEdicion)
+  payload.id = contrato.id;
 
       const response = await fetch(API_URL_ACTION, {
         method: esEdicion ? "PUT" : "POST",

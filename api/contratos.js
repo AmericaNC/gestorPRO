@@ -23,7 +23,6 @@ const ESTATUS_VALIDOS = [
 function validarFecha(fecha) {
   return !isNaN(new Date(fecha).getTime());
 }
-
 function generarPagos(
   contrato_id,
   local_id,
@@ -31,43 +30,38 @@ function generarPagos(
   fecha_inicio,
   fecha_vencimiento
 ) {
-
   const pagos = [];
 
-  const inicio = new Date(fecha_inicio);
+  // Parsear manualmente para evitar shift de UTC → timezone local
+  const [inicioY, inicioM] = fecha_inicio.split("-").map(Number);
+  const [finY, finM, finD] = fecha_vencimiento.split("-").map(Number);
 
-  const fin = new Date(fecha_vencimiento);
+  let cursorY = inicioY;
+  let cursorM = inicioM; // 1-indexed (febrero = 2)
 
-  let cursor = new Date(
-    inicio.getFullYear(),
-    inicio.getMonth(),
-    1
-  );
-
-  while (cursor <= fin) {
-
-    const año = cursor.getFullYear();
-
-    const mes = String(
-      cursor.getMonth() + 1
-    ).padStart(2, '0');
-
+  // Límite: mes/año del vencimiento
+  while (
+    cursorY < finY ||
+    (cursorY === finY && cursorM <= finM)
+  ) {
+    const mes = String(cursorM).padStart(2, "0");
     pagos.push({
-      periodo: `${año}-${mes}`,
+      periodo: `${cursorY}-${mes}`,
       contrato_id,
       local_id,
       monto_esperado: renta,
       monto_pagado: 0
     });
 
-    cursor.setMonth(
-      cursor.getMonth() + 1
-    );
+    cursorM++;
+    if (cursorM > 12) {
+      cursorM = 1;
+      cursorY++;
+    }
   }
 
   return pagos;
 }
-
 async function obtenerLocal(numeroLocal) {
 
   const { data, error } =
