@@ -176,8 +176,8 @@
   .financiero-filters .filter-input {
     flex: 1 1 140px;
   }
-  .fin-desktop { display: none;  }
-  .fin-mobile  { display: block; }
+  .fin-desktop { display: none;  background-color: #ffff;}
+  .fin-mobile  { display: block; background-color: #ffff;}
 }
 
 @media (min-width: 641px) {

@@ -213,6 +213,15 @@
   color: #9ca3af;
 }
 
+.inc-historial-card {
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.inc-historial-card:last-child {
+  margin-bottom: 0;
+}
+
 /* ── Desktop / móvil toggle ──────────────────────────── */
 .inc-desktop { display: block; }
 .inc-mobile  { display: none;  }

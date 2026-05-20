@@ -345,7 +345,7 @@ export default function ExpedientesPage() {
                               rel="noopener noreferrer"
                               className="ct-card-pdf-link"
                             >
-                              📄 Ver PDF
+                               Ver PDF
                             </a>
                           </div>
                         )}

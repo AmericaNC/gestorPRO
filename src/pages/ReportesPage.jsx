@@ -529,7 +529,7 @@ const totalPendiente = pagosCobrables
               {formatMXN(totalDiferencia)}
             </p>
           </div>
-          <div className="reportes-card">
+         {/* <div className="reportes-card">
   <p className="reportes-card-label">
     Pendiente por cobrar
     <span className="reportes-freq">
@@ -539,8 +539,8 @@ const totalPendiente = pagosCobrables
 
   <p className="reportes-card-value warning">
     {formatMXN(totalPendiente)}
-  </p>
-</div>
+  </p> 
+</div>*/}
         </div>
 
         {/* Tabla por arrendatario — sin filtro */}

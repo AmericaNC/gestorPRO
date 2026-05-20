@@ -140,6 +140,13 @@
 /* ─── Mobile cards (hidden on desktop) ───────────────────── */
 .mobile-cards { display: none; }
 
+.desktop-table { display: table; }
+
+@media (max-width: 768px) {
+  .desktop-table { display: none !important; }
+  .mobile-cards { display: flex !important; flex-direction: column; gap: 1rem !important; }
+}
+
 .mobile-card {
   border-bottom: 1px solid #f3f4f6;
 }
@@ -434,7 +441,7 @@
   .table-scroll { display: none; }
   .mobile-cards  { display: block; }
   .exp-desktop   { display: none; }
-  .exp-mobile    { display: block; }
+  .exp-mobile    { display: block; background-color: #ffff;}
   
 }
 

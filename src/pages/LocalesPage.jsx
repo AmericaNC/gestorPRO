@@ -82,7 +82,7 @@ export default function LocalesPage() {
           <>
             {/* Desktop table */}
             <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table desktop-table">
                 <thead>
                   <tr>
                     <th>Núm.</th>

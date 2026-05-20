@@ -149,16 +149,95 @@ export default async function handler(req, res) {
       // ───────────────────────────────────────────────────────
 
       const porcentaje = validarPorcentaje(req.body.porcentaje);
-
-      const inquilino_ids = limpiarIds(
-        req.body.inquilino_ids
-      );
+      const tipo = req.body.tipo || null;
 
       if (!porcentaje) {
         return res.status(400).json({
           error: 'Porcentaje inválido'
         });
       }
+
+      // Rama: incremento a locales desocupados
+      if (tipo === 'desocupados') {
+        const local_ids = limpiarIds(req.body.local_ids);
+
+        if (local_ids.length === 0) {
+          return res.status(400).json({
+            error: 'No se enviaron locales válidos'
+          });
+        }
+
+        // Obtener locales desocupados
+        const { data: locales, error: localesError } =
+          await supabaseAdmin
+            .from('locales')
+            .select('id, numero, renta, estatus')
+            .in('id', local_ids)
+            .eq('estatus', 'desocupado');
+
+        if (localesError) throw localesError;
+
+        if (!locales?.length) {
+          return res.status(400).json({
+            error: 'No se encontraron locales desocupados'
+          });
+        }
+
+        const resumenLocales = [];
+
+        for (const loc of locales) {
+          const rentaActual = Number(loc.renta);
+          if (isNaN(rentaActual) || rentaActual < 0) continue;
+
+          const nuevaRenta = redondear2(rentaActual * (1 + porcentaje / 100));
+
+          const { error: localUpdateError } =
+            await supabaseAdmin
+              .from('locales')
+              .update({ renta: nuevaRenta })
+              .eq('id', loc.id);
+
+          if (localUpdateError) throw localUpdateError;
+
+          resumenLocales.push({
+            local_id: loc.id,
+            numero: loc.numero,
+            renta_anterior: rentaActual,
+            renta_nueva: nuevaRenta
+          });
+        }
+
+        // Insertar historial
+        const { data: historial, error: historialError } =
+          await supabaseAdmin
+            .from('incrementos')
+            .insert([{
+              porcentaje,
+              arrendatarios_afectados: [],
+              contratos_afectados: [],
+              pagos_actualizados: 0,
+              aplicado_por: user.id
+            }])
+            .select()
+            .single();
+
+        if (historialError) {
+          throw historialError;
+        }
+
+        return res.status(200).json({
+          success: true,
+          data: historial,
+          resumen: {
+            porcentaje,
+            locales_afectados: resumenLocales.length,
+            locales: resumenLocales
+          }
+        });
+      }
+
+      // Por defecto: incremento a arrendatarios/contratos (lógica existente)
+      const inquilino_ids = limpiarIds(req.body.inquilino_ids);
 
       if (inquilino_ids.length === 0) {
         return res.status(400).json({

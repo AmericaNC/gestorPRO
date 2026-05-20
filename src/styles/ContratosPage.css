@@ -91,11 +91,11 @@
 
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 640px) {
-  .ct-desktop { display: none;  }
-  .ct-mobile  { display: block; }
+  .ct-desktop { display: none; background-color: #ffff; }
+  .ct-mobile  { display: block; background-color: #ffff;}
 }
 
 @media (min-width: 641px) {
-  .ct-mobile  { display: none;  }
-  .ct-desktop { display: block; }
+  .ct-mobile  { display: none;  background-color: #ffff;}
+  .ct-desktop { display: block; background-color: #ffff;}
 }
