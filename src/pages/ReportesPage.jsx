@@ -230,7 +230,8 @@ const descargarExcel = async (tipo) => {
 // ── Totales siempre desde contratos activos (sin filtro de fecha) ──
 const contratosCobrables = contratos.filter(c =>
   c.estatus === 'activo' ||
-  c.estatus === 'vencido'
+  c.estatus === 'vencido' ||
+  c.estatus === 'finalizado'
 );
 
 const contratosCobrablesIds =
@@ -290,7 +291,11 @@ const resumenPorArrendatario = Object.values(
 );
   // ── Mantenimiento — SÍ usa filtro de periodo ──
   const localIdsConContrato = contratos
-    .filter(c => c.estatus === 'activo' || c.estatus === 'vencido')
+    .filter(c =>
+    c.estatus === 'activo' ||
+    c.estatus === 'vencido' ||
+    c.estatus === 'finalizado'   // ← agregar
+  )
     .map(c => c.local_id);
 
   const gastosHuerfanos = gastos.filter(g => {
@@ -306,7 +311,11 @@ const resumenPorArrendatario = Object.values(
 
   const detalleMantenimiento = [
     ...contratos
-      .filter(c => c.estatus === 'activo' || c.estatus === 'vencido')
+      .filter(c =>
+      c.estatus === 'activo' ||
+      c.estatus === 'vencido' ||
+      c.estatus === 'finalizado'  // ← agregar
+    )
       .map(c => {
         const rangeStart = finDesde || c.fecha_inicio;
         const rangeEnd   = finHasta || c.fecha_vencimiento;
@@ -529,18 +538,7 @@ const totalPendiente = pagosCobrables
               {formatMXN(totalDiferencia)}
             </p>
           </div>
-         {/* <div className="reportes-card">
-  <p className="reportes-card-label">
-    Pendiente por cobrar
-    <span className="reportes-freq">
-      · activos y vencidos
-    </span>
-  </p>
-
-  <p className="reportes-card-value warning">
-    {formatMXN(totalPendiente)}
-  </p> 
-</div>*/}
+         
         </div>
 
         {/* Tabla por arrendatario — sin filtro */}
@@ -687,18 +685,10 @@ const totalPendiente = pagosCobrables
               <option value="activo">Activo</option>
               <option value="vencido">Vencido</option>
               <option value="cancelado">Cancelado</option>
+                <option value="finalizado">Finalizado</option> 
             </select>
           </div>
-          {/*
-          <div className="reportes-field">
-            <label className="reportes-label">Inicio desde <span className="reportes-freq">· por contrato</span></label>
-            <input type="date" value={contDesde} onChange={e => setContDesde(e.target.value)} />
-          </div>
-          <div className="reportes-field">
-            <label className="reportes-label">Vencimiento hasta <span className="reportes-freq">· por contrato</span></label>
-            <input type="date" value={contHasta} onChange={e => setContHasta(e.target.value)} />
-          </div>
-          */}
+          
         </div>
 
         {contratosReporte.length === 0 ? (

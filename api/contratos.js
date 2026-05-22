@@ -17,7 +17,8 @@ const supabaseAuth = createClient(
 const ESTATUS_VALIDOS = [
   'activo',
   'vencido',
-  'cancelado'
+  'cancelado',
+   'finalizado' 
 ];
 
 function validarFecha(fecha) {
@@ -289,7 +290,7 @@ export default async function handler(
     /* ───────────────── GET ───────────────── */
 
     if (method === 'GET') {
-
+const soloArchivados = req.query.archivados === 'true';
       const { data, error } =
         await supabaseAdmin
           .from('contratos')
@@ -298,6 +299,7 @@ export default async function handler(
             arrendatarios(nombre),
             locales(numero, renta, mantenimiento_mensual)
           `)
+        .eq('archivado', soloArchivados) 
           .order('created_at', {
             ascending: false
           });
@@ -784,91 +786,76 @@ export default async function handler(
         data
       });
     }
+/* ───────────────── DELETE (ARCHIVAR) ───────────────── */
 
-    /* ───────────────── DELETE ───────────────── */
+if (method === 'DELETE') {
 
-    if (method === 'DELETE') {
+  const id =
+    req.query.id ||
+    req.body.id;
 
-      const id =
-        req.query.id ||
-        req.body.id;
+  if (!id) {
+    return res.status(400).json({
+      error: 'ID requerido'
+    });
+  }
 
-      if (!id) {
+  /* OBTENER CONTRATO */
 
-        return res.status(400).json({
-          error: 'ID requerido'
-        });
-      }
+  const {
+    data: contrato,
+    error: contratoError
+  } = await supabaseAdmin
+    .from('contratos')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-      /* OBTENER CONTRATO */
+  if (contratoError) {
+    throw contratoError;
+  }
 
-      const {
-        data: contrato,
-        error: contratoError
-      } = await supabaseAdmin
-        .from('contratos')
-        .select('*')
-        .eq('id', id)
-        .single();
+  /* VALIDAR QUE NO ESTÉ YA ARCHIVADO */
 
-      if (contratoError) {
-        throw contratoError;
-      }
+  if (contrato.archivado) {
+    return res.status(400).json({
+      error: 'El contrato ya está archivado'
+    });
+  }
 
-      /* BORRAR PAGOS */
+  /* VALIDAR QUE SOLO SE ARCHIVEN CONTRATOS VENCIDOS O CANCELADOS */
 
-      const {
-        error: pagosError
-      } = await supabaseAdmin
-        .from('pagos')
-        .delete()
-        .eq('contrato_id', id);
+  if (
+    contrato.estatus !== 'vencido' &&
+    contrato.estatus !== 'cancelado' &&
+    contrato.estatus !== 'finalizado'
+  ) {
+    return res.status(400).json({
+      error:
+        'Solo se pueden archivar contratos vencidos, cancelados o finalizados'
+    });
+  }
 
-      if (pagosError) {
+  /* ARCHIVAR CONTRATO (sin tocar pagos ni local) */
 
-        console.error(
-          'Error eliminando pagos:',
-          pagosError.message
-        );
-      }
+  const { error: archivarError } =
+    await supabaseAdmin
+      .from('contratos')
+      .update({
+        archivado: true,
+        archivado_at: new Date().toISOString()
+      })
+      .eq('id', id);
 
-      /* BORRAR CONTRATO */
+  if (archivarError) {
+    throw archivarError;
+  }
 
-      const { error } =
-        await supabaseAdmin
-          .from('contratos')
-          .delete()
-          .eq('id', id);
-
-      if (error) throw error;
-
-      /* LIBERAR LOCAL */
-
-      const sigueOcupado =
-        await existeContratoActivoEnLocal(
-          contrato.local_id
-        );
-
-      if (!sigueOcupado) {
-
-        await actualizarEstatusLocal(
-          contrato.local_id,
-          'desocupado'
-        );
-      }
-
-      /* SINCRONIZAR */
-
-      await sincronizarArrendatarioConContratoActivo(
-        contrato.inquilino_id
-      );
-
-      return res.status(200).json({
-        success: true,
-        message:
-          'Contrato eliminado'
-      });
-    }
+  return res.status(200).json({
+    success: true,
+    message: 'Contrato archivado correctamente'
+  });
+}
 
     /* ───────────────── 405 ───────────────── */
 

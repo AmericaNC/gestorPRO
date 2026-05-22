@@ -82,6 +82,12 @@ export default function FinancieroPage() {
   const contratosActivosIds    = contratos.filter(c => c.estatus === 'activo').map(c => c.id);
   const contratosVencidosIds   = contratos.filter(c => c.estatus === 'vencido').map(c => c.id);
   const contratosCanceladosIds = contratos.filter(c => c.estatus === 'cancelado').map(c => c.id);
+  const contratosFinalizadosIds = contratos
+  .filter(c => c.estatus === 'finalizado')
+  .map(c => c.id);
+
+const pagosFinalizados = pagosFiltrados
+  .filter(p => contratosFinalizadosIds.includes(p.contrato_id));
 
   const pagosActivos    = pagosFiltrados.filter(p => contratosActivosIds.includes(p.contrato_id));
   const pagosVencidos   = pagosFiltrados.filter(p => contratosVencidosIds.includes(p.contrato_id));
@@ -102,65 +108,124 @@ export default function FinancieroPage() {
 
   const toggleGrupo = (nombre) =>
     setExpandido(prev => ({ ...prev, [nombre]: !prev[nombre] }));
+// ── Función para finalizar ────────────────────────────────────
+const finalizarContrato = async (contrato_id) => {
 
-  // ── Tabla desktop ─────────────────────────────────────────
-  const TablaPagosDesktop = ({ lista, conAccion = false }) => (
-    <div className="fin-desktop table-scroll">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Periodo</th>
-            <th>Local</th>
-            <th>Arrendatario</th>
-            <th>Esperado</th>
-            <th>Pagado</th>
-            <th>Diferencia</th>
-            <th>Estado</th>
-            <th>Fecha Pago</th>
-            {conAccion && <th>Acciones</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {lista.map(p => {
-            const estilo = ESTADO_COLORS[p.estado] || { color: '#888', bg: '#f3f4f6' };
-            return (
-              <tr key={p.id}>
-                <td>{p.periodo}</td>
-                <td>{p.locales?.numero ?? '—'}</td>
-                <td>{p.contratos?.arrendatarios?.nombre || '—'}</td>
-                <td className="col-money">{fmt(p.monto_esperado)}</td>
-                <td className="col-money">{fmt(p.monto_pagado)}</td>
-                <td className={`col-money ${Number(p.diferencia) < 0 ? 'diff-negative' : 'diff-positive'}`}>
-                  {fmt(p.diferencia)}
-                </td>
-                <td>
-                  <span className="payment-status" style={{ color: estilo.color, background: estilo.bg }}>
-                    {ESTADO_LABELS[p.estado] || p.estado}
-                  </span>
-                </td>
-                <td>{p.fecha_pago || '—'}</td>
-                {conAccion && (
-                  <td>
-                    <button className="btn-edit"
-                      onClick={() => { setSelectedPago(p); setDrawerOpen(true); }}>
-                      Registrar
-                    </button>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+  // Validar localmente antes de llamar al backend
+  const pagosDelContrato = pagos.filter(
+    p => p.contrato_id === contrato_id
   );
 
-  // ── Cards móvil ───────────────────────────────────────────
-  const TablaPagosMobile = ({ lista, conAccion = false }) => (
+  const tienePendientes = pagosDelContrato.some(
+    p => p.estado === 'pendiente' || p.estado === 'parcial'
+  );
+
+  if (tienePendientes) {
+    alert('Este contrato aún tiene pagos pendientes o parciales.');
+    return;
+  }
+
+  if (!window.confirm('¿Marcar este contrato como Finalizado?')) return;
+
+  try {
+    const token = await getToken();
+    const response = await fetch(API_URL_CONTRATOS, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ id: contrato_id, estatus: 'finalizado' })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Error al finalizar');
+    fetchData();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+};
+  // ── Tabla desktop ─────────────────────────────────────────
+  const TablaPagosDesktop = ({ lista, conAccion = false, onFinalizar = null }) => {
+    const isLastPayment = (p) => {
+      const last = [...lista].reverse().find(x => x.contrato_id === p.contrato_id);
+      return last?.id === p.id;
+    };
+
+    return (
+      <div className="fin-desktop table-scroll">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Periodo</th>
+              <th>Local</th>
+              <th>Arrendatario</th>
+              <th>Esperado</th>
+              <th>Pagado</th>
+              <th>Diferencia</th>
+              <th>Estado</th>
+              <th>Fecha Pago</th>
+              {conAccion && <th>Acciones</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map(p => {
+              const estilo = ESTADO_COLORS[p.estado] || { color: '#888', bg: '#f3f4f6' };
+              return (
+                <tr key={p.id}>
+                  <td>{p.periodo}</td>
+                  <td>{p.locales?.numero ?? '—'}</td>
+                  <td>{p.contratos?.arrendatarios?.nombre || '—'}</td>
+                  <td className="col-money">{fmt(p.monto_esperado)}</td>
+                  <td className="col-money">{fmt(p.monto_pagado)}</td>
+                  <td className={`col-money ${Number(p.diferencia) < 0 ? 'diff-negative' : 'diff-positive'}`}>
+                    {fmt(p.diferencia)}
+                  </td>
+                  <td>
+                    <span className="payment-status" style={{ color: estilo.color, background: estilo.bg }}>
+                      {ESTADO_LABELS[p.estado] || p.estado}
+                    </span>
+                  </td>
+                  <td>{p.fecha_pago || '—'}</td>
+                  {conAccion && (
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn-edit"
+                          onClick={() => { setSelectedPago(p); setDrawerOpen(true); }}>
+                          Registrar
+                        </button>
+                        {onFinalizar && isLastPayment(p) && (
+                          <button
+                            className="btn-expediente"
+                            onClick={() => onFinalizar(p.contrato_id)}
+                            title="Marcar contrato como finalizado"
+                          >
+                            ✓ Finalizar
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+ const TablaPagosMobile = ({ lista, conAccion = false, onFinalizar = null }) => {
+  const isLastPayment = (p) => {
+    const last = [...lista].reverse().find(x => x.contrato_id === p.contrato_id);
+    return last?.id === p.id;
+  };
+
+  return (
     <div className="fin-mobile">
       {lista.map(p => {
         const estilo = ESTADO_COLORS[p.estado] || { color: '#888', bg: '#f3f4f6' };
         const diff   = Number(p.diferencia || 0);
+        const esUltimo = isLastPayment(p);
         return (
           <div className="pago-card" key={p.id}>
             <div className="pago-card-header">
@@ -196,11 +261,23 @@ export default function FinancieroPage() {
             </div>
 
             {conAccion && (
-              <div className="pago-card-footer">
-                <button className="btn-edit btn-edit-full"
-                  onClick={() => { setSelectedPago(p); setDrawerOpen(true); }}>
+              <div className="pago-card-footer" style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn-edit btn-edit-full"
+                  style={{ flex: 1 }}
+                  onClick={() => { setSelectedPago(p); setDrawerOpen(true); }}
+                >
                   Registrar pago
                 </button>
+                {onFinalizar && esUltimo && (
+                  <button
+                    className="btn-expediente"
+                    style={{ flex: 1 }}
+                    onClick={() => onFinalizar(p.contrato_id)}
+                  >
+                    ✓ Finalizar
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -208,7 +285,7 @@ export default function FinancieroPage() {
       })}
     </div>
   );
-
+};
   // ── Render ────────────────────────────────────────────────
   return (
     <div className="container">
@@ -283,13 +360,14 @@ export default function FinancieroPage() {
                     {lista.length} pagos
                   </span>
                 </button>
-
-                {expandido[nombre] && (
-                  <>
-                    <TablaPagosDesktop lista={lista} conAccion />
-                    <TablaPagosMobile  lista={lista} conAccion />
-                  </>
-                )}
+{/* Activos */}
+{expandido[nombre] && (
+  <>
+    <TablaPagosDesktop lista={lista} conAccion onFinalizar={finalizarContrato} />
+    <TablaPagosMobile  lista={lista} conAccion onFinalizar={finalizarContrato} />
+  </>
+)}
+ 
               </div>
             ))}
           </div>
@@ -310,8 +388,8 @@ export default function FinancieroPage() {
                 pagosVencidos.length === 0 ? (
                   <div className="state-message"><p>Sin registros.</p></div>
                 ) : (
-                  <>
-                    <TablaPagosDesktop lista={pagosVencidos} conAccion />
+                    <>
+                    <TablaPagosDesktop lista={pagosVencidos} conAccion onFinalizar={finalizarContrato} />
                     <TablaPagosMobile  lista={pagosVencidos} conAccion />
                   </>
                 )
