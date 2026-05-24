@@ -41,7 +41,7 @@ export default function ReportesPage() {
   const [error, setError]             = useState(null);
 const [contratosArchivados, setContratosArchivados] = useState([]);
   const [mostrarDetalleMantenimiento, setMostrarDetalleMantenimiento] = useState(false);
-
+const [locales, setLocales] = useState([]);
   const [finDesde, setFinDesde] = useState(hace3Meses());
   const [finHasta, setFinHasta] = useState(hoyISO());
 
@@ -60,17 +60,20 @@ const [contratosArchivados, setContratosArchivados] = useState([]);
   try {
     const token = await getToken();
     const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-    const [pagRes, contRes, contArchRes, incRes, gasRes] = await Promise.all([
+    const [pagRes, contRes, contArchRes, incRes, gasRes, locRes] = await Promise.all([
       fetch(API_URL_PAGOS,                          { headers }),
       fetch(API_URL_CONTRATOS,                      { headers }),
       fetch(`${API_URL_CONTRATOS}?archivados=true`, { headers }), // ← nuevo
       fetch(API_URL_INCREMENTOS,                    { headers }),
       fetch(API_URL_GASTOS,                         { headers }),
+      fetch(apiUrl('/api/locales'),                 { headers }),
     ]);
-    const [pagData, contData, contArchData, incData, gasData] = await Promise.all([
-      pagRes.json(), contRes.json(), contArchRes.json(), incRes.json(), gasRes.json()
-    ]);
+    const [pagData, contData, contArchData, incData, gasData, locData] = await Promise.all([
+  pagRes.json(), contRes.json(), contArchRes.json(),
+  incRes.json(), gasRes.json(), locRes.json()
+]);
     setPagos(pagData.data          || []);
+    setLocales(locData.data || []);
     setContratos(contData.data     || []);
     setContratosArchivados(contArchData.data || []); // ← nuevo state
     setIncrementos(incData.data    || []);
@@ -149,12 +152,12 @@ const perdidasPorContrato = contratosArchivados
     })
     .filter(Boolean);
   // ── Contratos cobrables ───────────────────────────────────
-  const contratosCobrables = contratos.filter(c =>
-    !c.archivado && 
-    c.estatus === 'activo' ||
-    c.estatus === 'vencido' ||
-    c.estatus === 'finalizado'
-  );
+ const contratosCobrables = contratos.filter(c =>
+  !c.archivado &&
+  (c.estatus === 'activo' ||
+   c.estatus === 'vencido' ||
+   c.estatus === 'finalizado')
+);
 
   const contratosCobrablesIds = contratosCobrables.map(c => c.id);
 
@@ -216,54 +219,50 @@ const localIdsConContrato = contratos
     acc[g.local_id].push(g);
     return acc;
   }, {});
-
-  const detalleMantenimiento = [
-    ...contratos
-       .filter(c =>
-      !c.archivado &&  // ← agregar
+const detalleMantenimiento = locales
+  .filter(l => l.activo !== false) // solo locales activos
+  .map(local => {
+    // Buscar contrato activo/vencido/finalizado no archivado para este local
+    const contratoActivo = contratos.find(c =>
+      !c.archivado &&
+      c.local_id === local.numero &&
       (c.estatus === 'activo' || c.estatus === 'vencido' || c.estatus === 'finalizado')
-    )
-      .map(c => {
-        const rangeStart = finDesde || c.fecha_inicio;
-        const rangeEnd   = finHasta || c.fecha_vencimiento;
-        const meses      = getMonthsBetween(rangeStart, rangeEnd);
+    );
+
+    // El rango es siempre el filtro seleccionado
+    const rangeStart = finDesde;
+    const rangeEnd   = finHasta;
+
+    if (!rangeStart || !rangeEnd) return null;
+
+    const meses = getMonthsBetween(rangeStart, rangeEnd);
+
+    return {
+      contrato: contratoActivo ?? {
+        // Si no hay contrato, construir un objeto mínimo con los datos del local
+        id:           `local-${local.numero}`,
+        local_id:     local.numero,
+        locales:      local,
+        arrendatarios: null,
+      },
+      local,
+      desglose: meses.map(mes => {
+        const gastosDelMes    = gastos.filter(g =>
+          g.local_id === local.numero && g.fecha?.slice(0, 7) === mes
+        );
+        const hayGastosReales = gastosDelMes.length > 0;
         return {
-          contrato: c,
-          desglose: meses.map(mes => {
-            const gastosDelMes    = gastos.filter(g => g.local_id === c.local_id && g.fecha?.slice(0, 7) === mes);
-            const hayGastosReales = gastosDelMes.length > 0;
-            return {
-              mes,
-              tipo:  hayGastosReales ? "REAL" : "SIMULADO",
-              monto: hayGastosReales
-                ? gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0)
-                : Number(c.locales?.mantenimiento_mensual || 0),
-              gastos: gastosDelMes,
-            };
-          })
+          mes,
+          tipo:  hayGastosReales ? 'REAL' : 'SIMULADO',
+          monto: hayGastosReales
+            ? gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0)
+            : Number(local.mantenimiento_mensual || 0),
+          gastos: gastosDelMes,
         };
-      }),
-    ...Object.entries(gastosHuerfanosPorLocal).map(([localId, gastosLocal]) => {
-      const mesesConGastos = [...new Set(gastosLocal.map(g => g.fecha?.slice(0, 7)))];
-      return {
-        contrato: {
-          id: `huerfano-${localId}`,
-          local_id: Number(localId),
-          locales: { numero: Number(localId) },
-          arrendatarios: null,
-        },
-        desglose: mesesConGastos.map(mes => {
-          const gastosDelMes = gastosLocal.filter(g => g.fecha?.slice(0, 7) === mes);
-          return {
-            mes,
-            tipo: "REAL",
-            monto: gastosDelMes.reduce((s, g) => s + Number(g.monto || 0), 0),
-            gastos: gastosDelMes,
-          };
-        })
-      };
-    })
-  ];
+      })
+    };
+  })
+  .filter(Boolean);
 
   const totalMantenimiento = detalleMantenimiento.reduce(
     (acc, c) => acc + c.desglose.reduce((s, d) => s + d.monto, 0), 0
@@ -801,45 +800,59 @@ const localIdsConContrato = contratos
           {mostrarDetalleMantenimiento ? "Ocultar detalle" : "Ver detalle por local y mes (real / simulado)"}
         </button>
 
-        {mostrarDetalleMantenimiento && (
-          <div className="reportes-table-wrapper" style={{ marginTop: '1rem' }}>
-            <table className="reportes-table">
-              <thead>
-                <tr>
-                  <th className="reportes-th">Local</th>
-                  <th className="reportes-th">Mes <span className="reportes-freq">· en periodo</span></th>
-                  <th className="reportes-th">Tipo</th>
-                  <th className="reportes-th">Monto</th>
-                  <th className="reportes-th">Detalle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detalleMantenimiento.map(c =>
-                  c.desglose.map((d, i) => (
-                    <tr key={`${c.contrato.id}-${i}`}>
-                      <td className="reportes-td">
-                        <strong>Local {c.contrato.locales?.numero ?? c.contrato.local_id}</strong>
-                      </td>
-                      <td className="reportes-td">{d.mes}</td>
-                      <td className="reportes-td">
-                        <span className={d.tipo === 'REAL' ? 'reportes-success' : 'reportes-warning'}>
-                          {d.tipo}
-                        </span>
-                      </td>
-                      <td className="reportes-td">{formatMXN(d.monto)}</td>
-                      <td className="reportes-td reportes-muted" style={{ fontSize: '0.82rem' }}>
-                        {d.tipo === 'REAL'
-                          ? d.gastos.map(g => `${g.categoria}: ${g.concepto} (${formatMXN(g.monto)})`).join(' · ')
-                          : `Estimado desde local · ${formatMXN(c.contrato.locales?.mantenimiento_mensual)}/mes`
-                        }
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+       {mostrarDetalleMantenimiento && (
+  <div className="reportes-table-wrapper" style={{ marginTop: '1rem' }}>
+    <table className="reportes-table">
+      <thead>
+        <tr>
+          <th className="reportes-th">Local</th>
+          <th className="reportes-th">Estatus</th>
+          <th className="reportes-th">Mes <span className="reportes-freq">· en periodo</span></th>
+          <th className="reportes-th">Tipo</th>
+          <th className="reportes-th">Monto</th>
+          <th className="reportes-th">Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {detalleMantenimiento.map(c =>
+          c.desglose.map((d, i) => (
+            <tr key={`${c.local.numero}-${d.mes}`}>
+              {i === 0 && (
+                <>
+                  <td className="reportes-td" rowSpan={c.desglose.length}>
+                    <strong>Local {c.local.numero}</strong>
+                  </td>
+                  <td className="reportes-td" rowSpan={c.desglose.length}>
+                    <span className={
+                      c.contrato?.estatus === 'activo' ? 'reportes-success' :
+                      c.contrato?.estatus ? 'reportes-warning' :
+                      'reportes-muted'
+                    }>
+                      {c.contrato?.estatus ?? 'Desocupado'}
+                    </span>
+                  </td>
+                </>
+              )}
+              <td className="reportes-td">{d.mes}</td>
+              <td className="reportes-td">
+                <span className={d.tipo === 'REAL' ? 'reportes-success' : 'reportes-warning'}>
+                  {d.tipo}
+                </span>
+              </td>
+              <td className="reportes-td">{formatMXN(d.monto)}</td>
+              <td className="reportes-td reportes-muted" style={{ fontSize: '0.82rem' }}>
+                {d.tipo === 'REAL'
+                  ? d.gastos.map(g => `${g.categoria}: ${g.concepto} (${formatMXN(g.monto)})`).join(' · ')
+                  : `Estimado · ${formatMXN(c.local.mantenimiento_mensual)}/mes`
+                }
+              </td>
+            </tr>
+          ))
         )}
+      </tbody>
+    </table>
+  </div>
+)}
 
       </div>
 
