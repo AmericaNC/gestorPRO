@@ -140,7 +140,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
 
   const handleEliminar = async () => {
     const confirmacion = window.confirm(
-      `¿Estás seguro de que deseas eliminar a ${arrendatario.nombre}? Esta acción no se puede deshacer.`
+      `¿Estás seguro de que deseas inactivar a ${arrendatario.nombre}?\n\nEl arrendatario no se eliminará completamente, pero ya no aparecerá en la lista de activos.`
     );
 
     if (!confirmacion) return;
@@ -167,7 +167,7 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Error al eliminar");
+        throw new Error(result.error || "Error al inactivar el arrendatario");
       }
 
       // Obtener información del usuario autenticado para el log
@@ -304,8 +304,8 @@ export default function ArrendatarioDrawer({ open, onClose, onSaved, arrendatari
             }}
           >
             {eliminando
-              ? "Eliminando..."
-              : "Eliminar"}
+              ? "Inactivando..."
+              : "Inactivar"}
           </button>
         )}
 

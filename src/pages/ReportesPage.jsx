@@ -24,15 +24,14 @@ const formatDate = (s) => s ? new Date(s).toLocaleDateString('es-MX') : '—';
 
 const getMonthsBetween = (start, end) => {
   const months = [];
-  const d = new Date(start); d.setDate(1);
-  const last = new Date(end); last.setDate(1);
+  const d    = new Date(start + 'T12:00:00'); d.setDate(1);
+  const last = new Date(end   + 'T12:00:00'); last.setDate(1);
   while (d <= last) {
     months.push(d.toISOString().slice(0, 7));
     d.setMonth(d.getMonth() + 1);
   }
   return months;
 };
-
 export default function ReportesPage() {
   const [pagos, setPagos]             = useState([]);
   const [contratos, setContratos]     = useState([]);
@@ -40,10 +39,9 @@ export default function ReportesPage() {
   const [gastos, setGastos]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
-
+const [contratosArchivados, setContratosArchivados] = useState([]);
   const [mostrarDetalleMantenimiento, setMostrarDetalleMantenimiento] = useState(false);
 
-  // Filtro de periodo — SOLO aplica a gastos de mantenimiento
   const [finDesde, setFinDesde] = useState(hace3Meses());
   const [finHasta, setFinHasta] = useState(hoyISO());
 
@@ -55,248 +53,158 @@ export default function ReportesPage() {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
   };
-const descargarExcel = async (tipo) => {
 
-  const wb = XLSX.utils.book_new();
-
-  if (tipo === 'financiero') {
-
-    // =========================
-    // RESUMEN GENERAL
-    // =========================
-    const resumenData = [
-      {
-        Concepto: 'Total esperado',
-        Monto: totalEsperado,
-      },
-      {
-        Concepto: 'Total cobrado',
-        Monto: totalCobrado,
-      },
-      {
-        Concepto: 'Diferencia',
-        Monto: totalDiferencia,
-      },
-      {
-        Concepto: 'Gastos mantenimiento',
-        Monto: totalMantenimiento,
-      },
-      {
-  Concepto: 'Pendiente por cobrar',
-  Monto: totalPendiente,
-}
-    ];
-
-    const wsResumen = XLSX.utils.json_to_sheet(resumenData);
-
-    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
-
-    // =========================
-    // ARRENDATARIOS
-    // =========================
-    const arrendatariosData = resumenPorArrendatario.map(r => ({
-      Arrendatario: r.nombre,
-      Esperado: r.esperado,
-      Cobrado: r.cobrado,
-      Diferencia: r.cobrado - r.esperado,
-      Pendientes: r.pendientes,
-    }));
-
-    const wsArr = XLSX.utils.json_to_sheet(arrendatariosData);
-
-    XLSX.utils.book_append_sheet(wb, wsArr, 'Arrendatarios');
-
-    // =========================
-    // MANTENIMIENTO
-    // =========================
-    const mantenimientoData = detalleMantenimiento.flatMap(c =>
-      c.desglose.map(d => ({
-        Local: c.contrato.locales?.numero ?? c.contrato.local_id,
-        Mes: d.mes,
-        Tipo: d.tipo,
-        Monto: d.monto,
-        Detalle:
-          d.tipo === 'REAL'
-            ? d.gastos.map(g =>
-                `${g.categoria}: ${g.concepto}`
-              ).join(' | ')
-            : 'SIMULADO'
-      }))
-    );
-
-    const wsMant = XLSX.utils.json_to_sheet(mantenimientoData);
-
-    XLSX.utils.book_append_sheet(wb, wsMant, 'Mantenimiento');
-
-    // =========================
-    // EXPORTAR
-    // =========================
-    const excelBuffer = XLSX.write(wb, {
-      bookType: 'xlsx',
-      type: 'array'
-    });
-
-    const fileData = new Blob(
-      [excelBuffer],
-      {
-        type:
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }
-    );
-
-    saveAs(fileData, `reporte-financiero-${hoyISO()}.xlsx`);
-
+ const fetchData = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const token = await getToken();
+    const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+    const [pagRes, contRes, contArchRes, incRes, gasRes] = await Promise.all([
+      fetch(API_URL_PAGOS,                          { headers }),
+      fetch(API_URL_CONTRATOS,                      { headers }),
+      fetch(`${API_URL_CONTRATOS}?archivados=true`, { headers }), // ← nuevo
+      fetch(API_URL_INCREMENTOS,                    { headers }),
+      fetch(API_URL_GASTOS,                         { headers }),
+    ]);
+    const [pagData, contData, contArchData, incData, gasData] = await Promise.all([
+      pagRes.json(), contRes.json(), contArchRes.json(), incRes.json(), gasRes.json()
+    ]);
+    setPagos(pagData.data          || []);
+    setContratos(contData.data     || []);
+    setContratosArchivados(contArchData.data || []); // ← nuevo state
+    setIncrementos(incData.data    || []);
+    setGastos(gasData.data         || []);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
   }
-
-  else if (tipo === 'contratos') {
-
-    const contratosData = contratosReporte.map(c => ({
-      Local: c.locales?.numero ?? c.local_id,
-      Arrendatario: c.arrendatarios?.nombre ?? '—',
-      Inicio: c.fecha_inicio,
-      Vencimiento: c.fecha_vencimiento,
-      Renta: c.renta,
-      Estatus: c.estatus,
-    }));
-
-    const wsContratos = XLSX.utils.json_to_sheet(contratosData);
-
-    XLSX.utils.book_append_sheet(
-      wb,
-      wsContratos,
-      'Contratos'
-    );
-
-    const excelBuffer = XLSX.write(wb, {
-      bookType: 'xlsx',
-      type: 'array'
-    });
-
-    const fileData = new Blob(
-      [excelBuffer],
-      {
-        type:
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }
-    );
-
-    saveAs(fileData, `reporte-contratos-${hoyISO()}.xlsx`);
-  }
-
 };
-  const logPdfDownload = async (tipo) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      await logAction({
-        usuario_id: user?.id,
-        usuario_email: user?.email,
-        accion: "descargar_pdf",
-        entidad: "reportes",
-        entidad_id: tipo,
-        descripcion: `Descarga de PDF de reporte ${tipo}`
-      });
-    } catch (err) {
-      console.warn("No se pudo registrar log:", err.message);
-    }
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await getToken();
-      const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
-      const [pagRes, contRes, incRes, gasRes] = await Promise.all([
-        fetch(API_URL_PAGOS,       { headers }),
-        fetch(API_URL_CONTRATOS,   { headers }),
-        fetch(API_URL_INCREMENTOS, { headers }),
-        fetch(API_URL_GASTOS,      { headers }),
-      ]);
-      const [pagData, contData, incData, gasData] = await Promise.all([
-        pagRes.json(), contRes.json(), incRes.json(), gasRes.json()
-      ]);
-      setPagos(pagData.data       || []);
-      setContratos(contData.data  || []);
-      setIncrementos(incData.data || []);
-      setGastos(gasData.data      || []);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => { fetchData(); }, []);
-// ── Totales siempre desde contratos activos (sin filtro de fecha) ──
-const contratosCobrables = contratos.filter(c =>
-  c.estatus === 'activo' ||
-  c.estatus === 'vencido' ||
-  c.estatus === 'finalizado'
+// IDs de contratos archivados
+const contratosArchivadosIds = contratosArchivados.map(c => c.id);
+
+// Pagos cancelados que pertenecen a contratos archivados
+const pagosPercididos = pagos.filter(p =>
+  p.cancelado === true &&
+  contratosArchivadosIds.includes(p.contrato_id)
 );
 
-const contratosCobrablesIds =
-  contratosCobrables.map(c => c.id);
-
-const pagosCobrables = pagos.filter(p =>
-  contratosCobrablesIds.includes(p.contrato_id)
-);
-const totalEsperado = pagosCobrables.reduce(
-  (s, p) => s + Number(p.monto_esperado || 0),
+// Total de pérdidas
+const totalPerdidas = pagosPercididos.reduce(
+  (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
   0
 );
 
-const totalCobrado = pagosCobrables.reduce(
-  (s, p) => s + Number(p.monto_pagado || 0),
-  0
-);
+// Agrupar por contrato para el detalle
+const perdidasPorContrato = contratosArchivados
+  .map(c => {
+    const pagosDelContrato = pagosPercididos.filter(p => p.contrato_id === c.id);
+    if (pagosDelContrato.length === 0) return null;
+    return {
+      contrato: c,
+      pagos: pagosDelContrato,
+      total: pagosDelContrato.reduce(
+        (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+        0
+      )
+    };
+  })
+  .filter(Boolean) // quitar contratos sin pérdidas
+  .sort((a, b) => b.total - a.total); // mayor pérdida primero
 
-const totalDiferencia =
-  totalCobrado - totalEsperado;
-
-// ── Resumen por arrendatario ──
-const resumenPorArrendatario = Object.values(
-  pagosCobrables.reduce((acc, pago) => {
-
-    const nombre =
-      pago.contratos?.arrendatarios?.nombre ??
-      pago.contrato_id;
-
-    if (!acc[nombre]) {
-      acc[nombre] = {
-        nombre,
-        esperado: 0,
-        cobrado: 0,
-        pendientes: 0
+  const pagosArchivados = pagos.filter(p => contratosArchivadosIds.includes(p.contrato_id));
+  const pagosCanceladosArchivados = pagosArchivados.filter(p => p.cancelado === true);
+  const totalCanceladosArchivados = pagosCanceladosArchivados.reduce(
+    (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+    0
+  );
+  const pagosDeudaMuertaArchivados = pagosArchivados.filter(
+    p => !p.cancelado && (p.estado === 'pendiente' || p.estado === 'parcial')
+  );
+  const totalDeudaMuertaArchivados = pagosDeudaMuertaArchivados.reduce(
+    (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+    0
+  );
+  const totalPerdidasArchivadas = totalCanceladosArchivados + totalDeudaMuertaArchivados;
+  const perdidasArchivadasPorContrato = contratosArchivados
+    .map(c => {
+      const pagosDelContrato = pagosArchivados.filter(p => p.contrato_id === c.id);
+      if (pagosDelContrato.length === 0) return null;
+      const cancelados = pagosDelContrato
+        .filter(p => p.cancelado === true)
+        .reduce((s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0);
+      const deudaMuerta = pagosDelContrato
+        .filter(p => !p.cancelado && (p.estado === 'pendiente' || p.estado === 'parcial'))
+        .reduce((s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0);
+      return {
+        contrato: c,
+        local: c.locales?.numero ?? c.local_id,
+        arrendatario: c.arrendatarios?.nombre ?? '—',
+        total: cancelados + deudaMuerta,
+        cancelados,
+        deudaMuerta
       };
-    }
-
-    acc[nombre].esperado += parseFloat(
-      pago.monto_esperado ?? 0
-    );
-
-    acc[nombre].cobrado += parseFloat(
-      pago.monto_pagado ?? 0
-    );
-
-    if (
-      pago.estado === 'pendiente' ||
-      pago.estado === 'parcial'
-    ) {
-      acc[nombre].pendientes++;
-    }
-
-    return acc;
-
-  }, {})
-);
-  // ── Mantenimiento — SÍ usa filtro de periodo ──
-  const localIdsConContrato = contratos
-    .filter(c =>
+    })
+    .filter(Boolean);
+  // ── Contratos cobrables ───────────────────────────────────
+  const contratosCobrables = contratos.filter(c =>
+    !c.archivado && 
     c.estatus === 'activo' ||
     c.estatus === 'vencido' ||
-    c.estatus === 'finalizado'   // ← agregar
+    c.estatus === 'finalizado'
+  );
+
+  const contratosCobrablesIds = contratosCobrables.map(c => c.id);
+
+  const pagosCobrables = pagos.filter(p =>
+    contratosCobrablesIds.includes(p.contrato_id)
+  );
+
+  const totalEsperado = pagosCobrables.reduce(
+    (s, p) => s + Number(p.monto_esperado || 0), 0
+  );
+
+  const totalCobrado = pagosCobrables.reduce(
+    (s, p) => s + Number(p.monto_pagado || 0), 0
+  );
+
+  const totalDiferencia = totalCobrado - totalEsperado;
+
+  const totalPendiente = pagosCobrables
+    .filter(p => p.estado === 'pendiente' || p.estado === 'parcial')
+    .reduce((s, p) =>
+      s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+    0);
+
+  // ── Pérdida por cancelación ───────────────────────────────
+  const pagosCancelados     = pagos.filter(p => p.cancelado === true);
+  const perdidaCancelacion  = pagosCancelados.reduce(
+    (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0
+  );
+  const contratosCancelados = [...new Set(pagosCancelados.map(p => p.contrato_id))].length;
+
+  // ── Resumen por arrendatario ──────────────────────────────
+  const resumenPorArrendatario = Object.values(
+    pagosCobrables.reduce((acc, pago) => {
+      const nombre = pago.contratos?.arrendatarios?.nombre ?? pago.contrato_id;
+      if (!acc[nombre]) acc[nombre] = { nombre, esperado: 0, cobrado: 0, pendientes: 0 };
+      acc[nombre].esperado  += parseFloat(pago.monto_esperado ?? 0);
+      acc[nombre].cobrado   += parseFloat(pago.monto_pagado ?? 0);
+      if (pago.estado === 'pendiente' || pago.estado === 'parcial') acc[nombre].pendientes++;
+      return acc;
+    }, {})
+  );
+
+  // ── Mantenimiento ─────────────────────────────────────────
+
+const localIdsConContrato = contratos
+  .filter(c =>
+    !c.archivado &&  // ← agregar
+    (c.estatus === 'activo' || c.estatus === 'vencido' || c.estatus === 'finalizado')
   )
-    .map(c => c.local_id);
+  .map(c => c.local_id);
 
   const gastosHuerfanos = gastos.filter(g => {
     const enPeriodo = (!finDesde || g.fecha >= finDesde) && (!finHasta || g.fecha <= finHasta);
@@ -311,10 +219,9 @@ const resumenPorArrendatario = Object.values(
 
   const detalleMantenimiento = [
     ...contratos
-      .filter(c =>
-      c.estatus === 'activo' ||
-      c.estatus === 'vencido' ||
-      c.estatus === 'finalizado'  // ← agregar
+       .filter(c =>
+      !c.archivado &&  // ← agregar
+      (c.estatus === 'activo' || c.estatus === 'vencido' || c.estatus === 'finalizado')
     )
       .map(c => {
         const rangeStart = finDesde || c.fecha_inicio;
@@ -323,10 +230,7 @@ const resumenPorArrendatario = Object.values(
         return {
           contrato: c,
           desglose: meses.map(mes => {
-            const gastosDelMes = gastos.filter(g =>
-              g.local_id === c.local_id &&
-              g.fecha?.slice(0, 7) === mes
-            );
+            const gastosDelMes    = gastos.filter(g => g.local_id === c.local_id && g.fecha?.slice(0, 7) === mes);
             const hayGastosReales = gastosDelMes.length > 0;
             return {
               mes,
@@ -339,7 +243,6 @@ const resumenPorArrendatario = Object.values(
           })
         };
       }),
-
     ...Object.entries(gastosHuerfanosPorLocal).map(([localId, gastosLocal]) => {
       const mesesConGastos = [...new Set(gastosLocal.map(g => g.fecha?.slice(0, 7)))];
       return {
@@ -363,13 +266,13 @@ const resumenPorArrendatario = Object.values(
   ];
 
   const totalMantenimiento = detalleMantenimiento.reduce(
-    (acc, c) => acc + c.desglose.reduce((s, d) => s + d.monto, 0),
-    0
+    (acc, c) => acc + c.desglose.reduce((s, d) => s + d.monto, 0), 0
   );
-  // ── Contratos filtrados ──
+
+  // ── Contratos filtrados ───────────────────────────────────
   const contratosReporte = contratos.filter(c => {
     if (contEstatus && c.estatus !== contEstatus) return false;
-    if (contDesde && c.fecha_inicio < contDesde) return false;
+    if (contDesde && c.fecha_inicio < contDesde)  return false;
     if (contHasta && c.fecha_vencimiento > contHasta) return false;
     return true;
   });
@@ -377,26 +280,92 @@ const resumenPorArrendatario = Object.values(
   const hoy  = new Date();
   const en90 = new Date(); en90.setDate(hoy.getDate() + 90);
   const proximosAVencer = contratos
-  .filter(c => {
+    .filter(c => {
+      const v = new Date(c.fecha_vencimiento);
+      return (c.estatus === 'activo' || c.estatus === 'vencido') && v >= hoy && v <= en90;
+    })
+    .sort((a, b) => new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento));
 
-    const v = new Date(c.fecha_vencimiento);
+  // ── Log ───────────────────────────────────────────────────
+  const logPdfDownload = async (tipo) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await logAction({
+        usuario_id: user?.id,
+        usuario_email: user?.email,
+        accion: "descargar_pdf",
+        entidad: "reportes",
+        entidad_id: tipo,
+        descripcion: `Descarga de PDF de reporte ${tipo}`
+      });
+    } catch (err) {
+      console.warn("No se pudo registrar log:", err.message);
+    }
+  };
 
-    return (
-      (
-        c.estatus === 'activo' ||
-        c.estatus === 'vencido'
-      ) &&
-      v >= hoy &&
-      v <= en90
-    );
+  // ── Excel ─────────────────────────────────────────────────
+  const descargarExcel = async (tipo) => {
+    const wb = XLSX.utils.book_new();
 
-  })
-  .sort(
-    (a, b) =>
-      new Date(a.fecha_vencimiento) -
-      new Date(b.fecha_vencimiento)
-  );
-  // ── PDF ──
+    if (tipo === 'financiero') {
+      const resumenData = [
+        { Concepto: 'Total esperado',          Monto: totalEsperado },
+        { Concepto: 'Total cobrado',           Monto: totalCobrado },
+        { Concepto: 'Diferencia',              Monto: totalDiferencia },
+        { Concepto: 'Pendiente por cobrar',    Monto: totalPendiente },
+        { Concepto: 'Gastos mantenimiento',    Monto: totalMantenimiento },
+        { Concepto: 'Pérdida por cancelación', Monto: perdidaCancelacion },
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumenData), 'Resumen');
+
+      const arrendatariosData = resumenPorArrendatario.map(r => ({
+        Arrendatario: r.nombre,
+        Esperado:     r.esperado,
+        Cobrado:      r.cobrado,
+        Diferencia:   r.cobrado - r.esperado,
+        Pendientes:   r.pendientes,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(arrendatariosData), 'Arrendatarios');
+
+      const mantenimientoData = detalleMantenimiento.flatMap(c =>
+        c.desglose.map(d => ({
+          Local:   c.contrato.locales?.numero ?? c.contrato.local_id,
+          Mes:     d.mes,
+          Tipo:    d.tipo,
+          Monto:   d.monto,
+          Detalle: d.tipo === 'REAL'
+            ? d.gastos.map(g => `${g.categoria}: ${g.concepto}`).join(' | ')
+            : 'SIMULADO'
+        }))
+      );
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mantenimientoData), 'Mantenimiento');
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(
+        new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `reporte-financiero-${hoyISO()}.xlsx`
+      );
+
+    } else if (tipo === 'contratos') {
+      const contratosData = contratosReporte.map(c => ({
+        Local:         c.locales?.numero ?? c.local_id,
+        Arrendatario:  c.arrendatarios?.nombre ?? '—',
+        Inicio:        c.fecha_inicio,
+        Vencimiento:   c.fecha_vencimiento,
+        Renta:         c.renta,
+        Estatus:       c.estatus,
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contratosData), 'Contratos');
+
+      const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      saveAs(
+        new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `reporte-contratos-${hoyISO()}.xlsx`
+      );
+    }
+  };
+
+  // ── PDF ───────────────────────────────────────────────────
   const descargarPDF = async (tipo) => {
     const doc = new jsPDF();
     const fechaGenerado = new Date().toLocaleDateString('es-MX', { dateStyle: 'long' });
@@ -412,10 +381,14 @@ const resumenPorArrendatario = Object.values(
         startY: 50,
         head: [['Concepto', 'Alcance', 'Monto']],
         body: [
-          ['Total esperado',            'Contratos activos y vencidos · acumulado', formatMXN(totalEsperado)],
-          ['Total cobrado',             'Contratos activos y vencidos · acumulado', formatMXN(totalCobrado)],
-          ['Diferencia',                'Cobrado vs esperado',           formatMXN(totalDiferencia)],
-          ['Gastos de mantenimiento',   `Periodo ${finDesde} – ${finHasta}`, formatMXN(totalMantenimiento)],
+          ['Total esperado',          'Contratos activos y vencidos · acumulado', formatMXN(totalEsperado)],
+          ['Total cobrado',           'Contratos activos y vencidos · acumulado', formatMXN(totalCobrado)],
+          ['Diferencia',              'Cobrado vs esperado',                       formatMXN(totalDiferencia)],
+          ['Pendiente por cobrar',    'Pagos sin completar',                       formatMXN(totalPendiente)],
+          ['Gastos de mantenimiento', `Periodo ${finDesde} – ${finHasta}`,         formatMXN(totalMantenimiento)],
+          ['Pérdidas archivadas',      'Contratos archivados',                      formatMXN(totalPerdidasArchivadas)],
+          ['Pérdida por cancelación', `${contratosCancelados} contrato(s) cancelado(s)`, formatMXN(totalCanceladosArchivados)],
+          ['Deuda muerta',            'Contratos archivados',                      formatMXN(totalDeudaMuertaArchivados)],
         ],
       });
 
@@ -441,6 +414,29 @@ const resumenPorArrendatario = Object.values(
         bodyStyles: { fontSize: 8 },
       });
 
+      let y2 = doc.lastAutoTable.finalY + 12;
+      doc.setFontSize(12);
+      doc.text('Pérdidas archivadas', 14, y2);
+      y2 += 6;
+      if (perdidasArchivadasPorContrato.length === 0) {
+        doc.setFontSize(10);
+        doc.text('No hay pérdidas registradas en contratos archivados.', 14, y2);
+      } else {
+        autoTable(doc, {
+          startY: y2,
+          head: [['Local', 'Arrendatario', 'Contrato', 'Cancelados', 'Deuda muerta', 'Total']],
+          body: perdidasArchivadasPorContrato.map(p => [
+            p.local,
+            p.arrendatario,
+            p.contrato.id,
+            formatMXN(p.cancelados),
+            formatMXN(p.deudaMuerta),
+            formatMXN(p.total)
+          ]),
+          bodyStyles: { fontSize: 8 },
+        });
+      }
+
       doc.save(`reporte-financiero-${finDesde}-${finHasta}.pdf`);
       await logPdfDownload(tipo);
 
@@ -449,6 +445,7 @@ const resumenPorArrendatario = Object.values(
       doc.setFontSize(10);
       doc.text(`Generado: ${fechaGenerado}`, 14, 28);
       if (contEstatus) doc.text(`Filtro estatus: ${contEstatus}`, 14, 34);
+
       autoTable(doc, {
         startY: 44,
         head: [['Local', 'Arrendatario', 'Inicio', 'Vencimiento', 'Renta mensual', 'Estatus']],
@@ -461,21 +458,37 @@ const resumenPorArrendatario = Object.values(
           c.estatus,
         ]),
       });
+
+      let y3 = doc.lastAutoTable.finalY + 12;
+      doc.setFontSize(12);
+      doc.text('Pérdidas archivadas', 14, y3);
+      y3 += 6;
+
+      if (perdidasArchivadasPorContrato.length === 0) {
+        doc.setFontSize(10);
+        doc.text('No hay pérdidas registradas en contratos archivados.', 14, y3);
+      } else {
+        autoTable(doc, {
+          startY: y3,
+          head: [['Local', 'Arrendatario', 'Contrato', 'Cancelados', 'Deuda muerta', 'Total']],
+          body: perdidasArchivadasPorContrato.map(p => [
+            p.local,
+            p.arrendatario,
+            p.contrato.id,
+            formatMXN(p.cancelados),
+            formatMXN(p.deudaMuerta),
+            formatMXN(p.total)
+          ]),
+          bodyStyles: { fontSize: 8 },
+        });
+      }
+
       doc.save(`reporte-contratos-${hoyISO()}.pdf`);
       await logPdfDownload(tipo);
     }
   };
-const totalPendiente = pagosCobrables
-  .filter(p =>
-    p.estado === 'pendiente' ||
-    p.estado === 'parcial'
-  )
-  .reduce((s, p) =>
-    s + (
-      Number(p.monto_esperado || 0) -
-      Number(p.monto_pagado || 0)
-    ),
-  0);
+
+  // ── Guards ────────────────────────────────────────────────
   if (loading) return <div style={{ padding: '20px' }}><p>Cargando...</p></div>;
   if (error)   return <div style={{ padding: '20px' }}><p style={{ color: 'red' }}>{error}</p></div>;
 
@@ -495,17 +508,17 @@ const totalPendiente = pagosCobrables
           <button className="btn-primary" onClick={() => descargarPDF('financiero')}>
             ↓ Descargar PDF
           </button>
-         <ExportarExcelReporte
-  pagos={pagos}
-  contratos={contratos}
-  gastos={gastos}
-  detalleMantenimiento={detalleMantenimiento}
-  finDesde={finDesde}
-  finHasta={finHasta}
-/>
+          <ExportarExcelReporte
+            pagos={pagos}
+            contratos={contratos}
+            contratosArchivados={contratosArchivados}
+            gastos={gastos}
+            detalleMantenimiento={detalleMantenimiento}
+            finDesde={finDesde}
+            finHasta={finHasta}
+          />
         </div>
 
-        {/* ── Aviso de alcance ── */}
         <div className="reportes-scope-banner">
           <span className="reportes-scope-icon">ℹ</span>
           <span>
@@ -514,8 +527,9 @@ const totalPendiente = pagosCobrables
           </span>
         </div>
 
-        {/* Summary cards — sin filtro */}
+        {/* ── Tarjetas resumen ── */}
         <div className="reportes-summary">
+
           <div className="reportes-card">
             <p className="reportes-card-label">
               Total esperado <span className="reportes-freq">· contratos activos y vencidos acumulado</span>
@@ -538,10 +552,182 @@ const totalPendiente = pagosCobrables
               {formatMXN(totalDiferencia)}
             </p>
           </div>
-         
+
+          <div className="reportes-card">
+            <p className="reportes-card-label">
+              Pendiente por cobrar <span className="reportes-freq">· pagos sin completar</span>
+            </p>
+            <p className="reportes-card-value danger">{formatMXN(totalPendiente)}</p>
+          </div>
+
+          {perdidaCancelacion > 0 && (
+            <div className="reportes-card">
+              <p className="reportes-card-label">
+                Pérdida por cancelación
+                <span className="reportes-freq">
+                  · {contratosCancelados} contrato{contratosCancelados !== 1 ? 's' : ''} cancelado{contratosCancelados !== 1 ? 's' : ''}
+                </span>
+              </p>
+              <p className="reportes-card-value danger">{formatMXN(perdidaCancelacion)}</p>
+            </div>
+          )}
+
+        </div>
+       {/* ══ PÉRDIDAS ══ */}
+<div className="reportes-section">
+
+  <div className="reportes-header">
+    <div>
+      <p className="reportes-title">Pérdidas por contratos archivados</p>
+      <p className="reportes-subtitle">
+        Incluye pagos cancelados (meses no cobrados al desalojar) y deudas pendientes dejadas morir
+      </p>
+    </div>
+  </div>
+
+  {/* ── Cálculo combinado ── */}
+  {(() => {
+    // Todos los pagos de contratos archivados
+    const pagosDeArchivados = pagos.filter(p =>
+      contratosArchivadosIds.includes(p.contrato_id)
+    );
+
+    // Cancelados: meses que no se cobraron al desalojar
+    const pagosCancelados = pagosDeArchivados.filter(p => p.cancelado === true);
+    const totalCancelados = pagosCancelados.reduce(
+      (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0
+    );
+
+    // Deuda muerta: pendientes o parciales no cancelados (se decidió no cobrar)
+    const pagosDeudaMuerta = pagosDeArchivados.filter(
+      p => !p.cancelado && (p.estado === 'pendiente' || p.estado === 'parcial')
+    );
+    const totalDeudaMuerta = pagosDeudaMuerta.reduce(
+      (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0
+    );
+
+    const totalPerdidasCombinado = totalCancelados + totalDeudaMuerta;
+
+    // Agrupar por contrato
+    const perdidasCombinadas = contratosArchivados
+      .map(c => {
+        const cancelados   = pagosCancelados.filter(p => p.contrato_id === c.id);
+        const deudaMuerta  = pagosDeudaMuerta.filter(p => p.contrato_id === c.id);
+        const todos        = [...cancelados, ...deudaMuerta];
+        if (todos.length === 0) return null;
+        return {
+          contrato: c,
+          cancelados,
+          deudaMuerta,
+          todos,
+          total: todos.reduce(
+            (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0
+          )
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.total - a.total);
+
+    return (
+      <>
+        {/* Tarjetas resumen */}
+        <div className="reportes-summary" style={{ marginBottom: '1.5rem' }}>
+          <div className="reportes-card">
+            <p className="reportes-card-label">
+              Total pérdidas
+              <span className="reportes-freq">· cancelados + deuda muerta</span>
+            </p>
+            <p className="reportes-card-value danger">{formatMXN(totalPerdidasCombinado)}</p>
+          </div>
+          <div className="reportes-card">
+            <p className="reportes-card-label">
+              Meses no cobrados
+              <span className="reportes-freq">· pagos cancelados al desalojar</span>
+            </p>
+            <p className="reportes-card-value danger">{formatMXN(totalCancelados)}</p>
+          </div>
+          <div className="reportes-card">
+            <p className="reportes-card-label">
+              Deuda dejada morir
+              <span className="reportes-freq">· pendientes sin recuperar</span>
+            </p>
+            <p className="reportes-card-value danger">{formatMXN(totalDeudaMuerta)}</p>
+          </div>
+          <div className="reportes-card">
+            <p className="reportes-card-label">
+              Contratos con pérdidas
+              <span className="reportes-freq">· archivados</span>
+            </p>
+            <p className="reportes-card-value danger">{perdidasCombinadas.length}</p>
+          </div>
         </div>
 
-        {/* Tabla por arrendatario — sin filtro */}
+        {perdidasCombinadas.length === 0 ? (
+          <div className="reportes-empty-card">No hay pérdidas registradas en contratos archivados.</div>
+        ) : (
+          <div className="reportes-table-wrapper">
+            <table className="reportes-table">
+              <thead>
+                <tr>
+                  <th className="reportes-th">Local</th>
+                  <th className="reportes-th">Arrendatario</th>
+                  <th className="reportes-th">Periodo</th>
+                  <th className="reportes-th">Tipo</th>
+                  <th className="reportes-th">Esperado</th>
+                  <th className="reportes-th">Pagado</th>
+                  <th className="reportes-th">Pérdida</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perdidasCombinadas.map(({ contrato, todos: ps }) =>
+                  ps.map((p, i) => {
+                    const perdida  = Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0);
+                    const tipo     = p.cancelado ? 'No cobrado' : 'Deuda muerta';
+                    const tipoCss  = p.cancelado ? 'reportes-warning' : 'reportes-danger';
+                    return (
+                      <tr key={p.id}>
+                        {i === 0 && (
+                          <>
+                            <td className="reportes-td" rowSpan={ps.length}>
+                              <strong>Local {contrato.locales?.numero ?? contrato.local_id}</strong>
+                            </td>
+                            <td className="reportes-td" rowSpan={ps.length}>
+                              {contrato.arrendatarios?.nombre ?? '—'}
+                            </td>
+                          </>
+                        )}
+                        <td className="reportes-td">{p.periodo}</td>
+                        <td className="reportes-td">
+                          <span className={tipoCss} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            {tipo}
+                          </span>
+                        </td>
+                        <td className="reportes-td">{formatMXN(p.monto_esperado)}</td>
+                        <td className="reportes-td">{formatMXN(p.monto_pagado)}</td>
+                        <td className="reportes-td reportes-danger">
+                          <strong>{formatMXN(perdida)}</strong>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+                <tr style={{ borderTop: '2px solid var(--border)' }}>
+                  <td className="reportes-td" colSpan={6}><strong>Total pérdidas</strong></td>
+                  <td className="reportes-td reportes-danger">
+                    <strong>{formatMXN(totalPerdidasCombinado)}</strong>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
+    );
+  })()}
+
+</div>
+
+        {/* ── Tabla por arrendatario ── */}
         <div className="reportes-table-wrapper" style={{ marginBottom: '2rem' }}>
           <table className="reportes-table">
             <thead>
@@ -574,12 +760,11 @@ const totalPendiente = pagosCobrables
           </table>
         </div>
 
-        {/* ── Divisor mantenimiento ── */}
+        {/* ── Mantenimiento ── */}
         <div className="reportes-divider">
           <span>Gastos de Mantenimiento</span>
         </div>
 
-        {/* Filtro de periodo — SOLO para mantenimiento */}
         <p className="reportes-filter-note">
           El periodo seleccionado aplica únicamente al cálculo de gastos de mantenimiento.
           Si no hay gasto registrado en un mes, se usa el valor de <em>mantenimiento mensual</em> del local como referencia.
@@ -600,7 +785,6 @@ const totalPendiente = pagosCobrables
           </div>
         </div>
 
-        {/* Card mantenimiento — con filtro */}
         <div className="reportes-summary" style={{ marginBottom: '0.75rem' }}>
           <div className="reportes-card">
             <p className="reportes-card-label">
@@ -610,17 +794,13 @@ const totalPendiente = pagosCobrables
           </div>
         </div>
 
-        {/* Botón detalle */}
         <button
           className="btn-secondary"
           onClick={() => setMostrarDetalleMantenimiento(!mostrarDetalleMantenimiento)}
         >
-          {mostrarDetalleMantenimiento
-            ? "Ocultar detalle"
-            : "Ver detalle por local y mes (real / simulado)"}
+          {mostrarDetalleMantenimiento ? "Ocultar detalle" : "Ver detalle por local y mes (real / simulado)"}
         </button>
 
-        {/* Detalle colapsable */}
         {mostrarDetalleMantenimiento && (
           <div className="reportes-table-wrapper" style={{ marginTop: '1rem' }}>
             <table className="reportes-table">
@@ -674,7 +854,6 @@ const totalPendiente = pagosCobrables
           <button className="btn-primary" onClick={() => descargarPDF('contratos')}>
             ↓ Descargar PDF
           </button>
-         
         </div>
 
         <div className="reportes-row">
@@ -685,10 +864,9 @@ const totalPendiente = pagosCobrables
               <option value="activo">Activo</option>
               <option value="vencido">Vencido</option>
               <option value="cancelado">Cancelado</option>
-                <option value="finalizado">Finalizado</option> 
+              <option value="finalizado">Finalizado</option>
             </select>
           </div>
-          
         </div>
 
         {contratosReporte.length === 0 ? (

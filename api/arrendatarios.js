@@ -109,15 +109,14 @@ export default async function handler(req, res) {
     if (method === 'GET') {
 
       const search = limpiarTexto(req.query.search)
+        const inactivos  = req.query.inactivos === 'true';
 
-      let query = supabaseAdmin
-        .from('arrendatarios')
-        .select(`
-          *,
-          locales(numero)
-        `)
-        .eq('activo', true)
-        .order('nombre', { ascending: true })
+       let query = supabaseAdmin
+    .from('arrendatarios')
+    .select(`*, locales(numero)`)
+    .eq('activo', !inactivos)                          // ── NUEVO
+    .order('nombre', { ascending: true });
+    
 
       // búsqueda opcional
       if (search) {
@@ -142,33 +141,46 @@ export default async function handler(req, res) {
       // ───────────────────────────────────────────────────────
       // SOFT DELETE
       // ───────────────────────────────────────────────────────
+// ── REACTIVAR ──
+if (action === 'reactivar') {
+  if (!id) return fail(res, 'ID requerido', 400);
 
+  const { error: reactivarError } = await supabaseAdmin
+    .from('arrendatarios')
+    .update({
+      activo: true,
+      deleted_at: null
+    })
+    .eq('id', id);
+
+  if (reactivarError) throw reactivarError;
+
+  return ok(res, null, 'Arrendatario reactivado');
+}
       if (action === 'delete') {
 
         if (!id) {
           return fail(res, 'ID requerido', 400)
         }
 
-        // validar contratos ACTIVOS asociados
         const {
-          count,
-          error: countError
-        } = await supabaseAdmin
-          .from('contratos')
-          .select('*', { count: 'exact', head: true })
-          .eq('inquilino_id', id)
-          .eq('estatus', 'activo')
+    count,
+    error: countError
+  } = await supabaseAdmin
+    .from('contratos')
+    .select('*', { count: 'exact', head: true })
+    .eq('inquilino_id', id)
+    .eq('estatus', 'activo')   // ← solo activos
 
-        if (countError) throw countError
+  if (countError) throw countError
 
-        if (count > 0) {
-          return fail(
-            res,
-            `No se puede eliminar: el arrendatario tiene ${count} contrato(s) activo(s).`,
-            400
-          )
-        }
-
+  if (count > 0) {
+    return fail(
+      res,
+      `No se puede eliminar: el arrendatario tiene ${count} contrato(s) activo(s). Envíalo a expediente primero.`,
+      400
+    )
+  }
         // soft delete
         const {
           error: deleteError

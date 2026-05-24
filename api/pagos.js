@@ -179,7 +179,50 @@ export default async function handler(req, res) {
     // ───────────────────────────────────────────────────────
 
     if (method === 'POST') {
+// ── NUEVO: obtener resumen de pagos de un contrato ──
+  if (req.body.action === 'obtener_resumen') {
+    const { contrato_id } = req.body;
 
+    if (!contrato_id) {
+      return res.status(400).json({ error: 'contrato_id requerido' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('pagos')
+      .select('*')
+      .eq('contrato_id', contrato_id);
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      data
+    });
+  }
+
+// ── NUEVO: cancelar pagos futuros de un contrato ──
+  if (req.body.action === 'cancelar_por_contrato') {
+    const { contrato_id, mes_actual } = req.body;
+
+    if (!contrato_id || !mes_actual) {
+      return res.status(400).json({ error: 'Faltan parámetros' });
+    }
+
+   const { data, error } = await supabaseAdmin
+  .from('pagos')
+  .update({ cancelado: true })
+  .eq('contrato_id', contrato_id)
+  .eq('estado', 'pendiente')
+  .gt('periodo', mes_actual)
+  .select();
+
+    if (error) throw error;
+
+    return res.status(200).json({
+      success: true,
+      cancelados: data?.length ?? 0
+    });
+  }
       // Delete alternativo
       if (req.body.action === 'delete') {
 
@@ -291,13 +334,18 @@ export default async function handler(req, res) {
       // Obtener pago actual
       const {
         data: pagoActual,
+        
         error: pagoError
       } = await supabaseAdmin
         .from('pagos')
         .select('*')
         .eq('id', id)
         .single();
-
+if (pagoActual.cancelado === true) {
+  return res.status(400).json({
+    error: 'Este pago fue cancelado y no puede modificarse'
+  });
+}
       if (pagoError) throw pagoError;
 
       // Sanitizar

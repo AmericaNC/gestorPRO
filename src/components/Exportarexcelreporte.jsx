@@ -96,7 +96,7 @@ const hoyISO = () => new Date().toISOString().slice(0, 10);
 // ─────────────────────────────────────────────────────────────────
 // HOJA 1 — Resumen ejecutivo
 // ─────────────────────────────────────────────────────────────────
-function crearHojaResumen(wb, { contratos, pagos, gastos, detalleMantenimiento, finDesde, finHasta }) {
+function crearHojaResumen(wb, { contratos, pagos, gastos, detalleMantenimiento, finDesde, finHasta, totalPerdidasArchivadas = 0, totalCanceladosArchivados = 0, totalDeudaMuertaArchivados = 0 }) {
 
   const ws = {};
   const wsName = 'Resumen';
@@ -133,10 +133,14 @@ function crearHojaResumen(wb, { contratos, pagos, gastos, detalleMantenimiento, 
   row += 2;
 
   // ── Bloque KPIs ──
-  const contratosCobrables = contratos.filter(c => c.estatus === 'activo' || c.estatus === 'vencido');
-  const idsCob = contratosCobrables.map(c => c.id);
-  const pagsCob = pagos.filter(p => idsCob.includes(p.contrato_id));
-
+// DESPUÉS — incluir finalizado y asegurar comparación de strings
+const contratosCobrables = contratos.filter(c =>
+  c.estatus === 'activo' ||
+  c.estatus === 'vencido' ||
+  c.estatus === 'finalizado'
+);
+const idsCob = new Set(contratosCobrables.map(c => String(c.id)));
+const pagsCob = pagos.filter(p => idsCob.has(String(p.contrato_id)));
   const totalEsperado    = pagsCob.reduce((s, p) => s + Number(p.monto_esperado || 0), 0);
   const totalCobrado     = pagsCob.reduce((s, p) => s + Number(p.monto_pagado || 0), 0);
   const totalDiferencia  = totalCobrado - totalEsperado;
@@ -195,6 +199,24 @@ function crearHojaResumen(wb, { contratos, pagos, gastos, detalleMantenimiento, 
   });
 
   row += 2;
+
+  // ── Pérdidas archivadas ─────────────────────────────────────────────────
+  const perdas = [
+    ['Pérdidas archivadas', fmtPeso(totalPerdidasArchivadas)],
+    ['Pérdida por cancelación', fmtPeso(totalCanceladosArchivados)],
+    ['Deuda muerta', fmtPeso(totalDeudaMuertaArchivados)],
+  ];
+  perdas.forEach(([label, value]) => {
+    const labelCell = XLSX.utils.encode_cell({ r: row - 1, c: 0 });
+    const valueCell = XLSX.utils.encode_cell({ r: row - 1, c: 1 });
+    ws[labelCell] = { t: 's', v: label };
+    ws[valueCell] = { t: 's', v: value };
+    applyStyle(ws, labelCell, { font: font({ bold: true, color: C.dark }), fill: fill(C.rowAlterA), alignment: align('left'), border: border() });
+    applyStyle(ws, valueCell, { font: font({ bold: true, color: C.dark }), fill: fill(C.rowAlterA), alignment: align('right'), border: border() });
+    row++;
+  });
+
+  row += 1;
 
   // ── Tabla contratos activos por arrendatario ──
   const secTitleCell = XLSX.utils.encode_cell({ r: row - 1, c: 0 });
@@ -331,10 +353,9 @@ function crearHojaPagos(wb, { contratos, pagos }) {
   };
 
   contratosOrdenados.forEach((contrato) => {
-    const pagosCont = pagos
-      .filter(p => p.contrato_id === contrato.id)
-      .sort((a, b) => a.periodo.localeCompare(b.periodo));
-
+ const pagosCont = pagos
+  .filter(p => String(p.contrato_id) === String(contrato.id))  // ← String() en ambos
+  .sort((a, b) => a.periodo.localeCompare(b.periodo));
     if (pagosCont.length === 0) return;
 
     const bgEstatus = estBgMap[contrato.estatus] || C.rowAlterA;
@@ -574,13 +595,60 @@ function crearHojaMantenimiento(wb, { detalleMantenimiento, finDesde, finHasta }
 // ─────────────────────────────────────────────────────────────────
 // Función principal exportar
 // ─────────────────────────────────────────────────────────────────
-export function exportarExcelCompleto({ pagos, contratos, gastos, detalleMantenimiento, finDesde, finHasta }) {
+export function exportarExcelCompleto({ pagos, contratos, contratosArchivados, gastos, detalleMantenimiento, finDesde, finHasta }) {
   const wb = { SheetNames: [], Sheets: {} };
 
-  crearHojaResumen(wb,        { contratos, pagos, gastos, detalleMantenimiento, finDesde, finHasta });
+  const contratosArchivadosIds = (contratosArchivados || []).map(c => String(c.id));
+  const pagosArchivados = pagos.filter(p => contratosArchivadosIds.includes(String(p.contrato_id)));
+  const pagosCanceladosArchivados = pagosArchivados.filter(p => p.cancelado === true);
+  const totalCanceladosArchivados = pagosCanceladosArchivados.reduce(
+    (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+    0
+  );
+  const pagosDeudaMuertaArchivados = pagosArchivados.filter(
+    p => !p.cancelado && (p.estado === 'pendiente' || p.estado === 'parcial')
+  );
+  const totalDeudaMuertaArchivados = pagosDeudaMuertaArchivados.reduce(
+    (s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)),
+    0
+  );
+  const totalPerdidasArchivadas = totalCanceladosArchivados + totalDeudaMuertaArchivados;
+  const perdidasArchivadasPorContrato = (contratosArchivados || [])
+    .map(c => {
+      const pagosDelContrato = pagosArchivados.filter(p => String(p.contrato_id) === String(c.id));
+      if (pagosDelContrato.length === 0) return null;
+      const cancelados = pagosDelContrato
+        .filter(p => p.cancelado === true)
+        .reduce((s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0);
+      const deudaMuerta = pagosDelContrato
+        .filter(p => !p.cancelado && (p.estado === 'pendiente' || p.estado === 'parcial'))
+        .reduce((s, p) => s + (Number(p.monto_esperado || 0) - Number(p.monto_pagado || 0)), 0);
+      return {
+        Local: c.locales?.numero ?? c.local_id,
+        Arrendatario: c.arrendatarios?.nombre ?? '—',
+        Contrato: c.id,
+        Cancelados: cancelados,
+        DeudaMuerta: deudaMuerta,
+        Total: cancelados + deudaMuerta,
+      };
+    })
+    .filter(Boolean);
+
+  crearHojaResumen(wb,        { contratos, pagos, gastos, detalleMantenimiento, finDesde, finHasta, totalPerdidasArchivadas, totalCanceladosArchivados, totalDeudaMuertaArchivados });
   crearHojaPagos(wb,          { contratos, pagos });
   crearHojaContratos(wb,      { contratos });
   crearHojaMantenimiento(wb,  { detalleMantenimiento, finDesde, finHasta });
+  if (perdidasArchivadasPorContrato.length > 0) {
+    const sheet = XLSX.utils.json_to_sheet(perdidasArchivadasPorContrato.map(r => ({
+      Local: r.Local,
+      Arrendatario: r.Arrendatario,
+      Contrato: r.Contrato,
+      'Pérdida cancelada': r.Cancelados,
+      'Deuda muerta': r.DeudaMuerta,
+      Total: r.Total,
+    })));
+    XLSX.utils.book_append_sheet(wb, sheet, 'Pérdidas');
+  }
 
   const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
   const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -593,6 +661,7 @@ export function exportarExcelCompleto({ pagos, contratos, gastos, detalleManteni
 export default function ExportarExcelReporte({
   pagos = [],
   contratos = [],
+  contratosArchivados = [],
   gastos = [],
   detalleMantenimiento = [],
   finDesde = '',
@@ -600,7 +669,7 @@ export default function ExportarExcelReporte({
   className = '',
 }) {
   const handleClick = () => {
-    exportarExcelCompleto({ pagos, contratos, gastos, detalleMantenimiento, finDesde, finHasta });
+    exportarExcelCompleto({ pagos, contratos, contratosArchivados, gastos, detalleMantenimiento, finDesde, finHasta });
   };
 
   return (

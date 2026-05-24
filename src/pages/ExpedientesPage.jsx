@@ -251,23 +251,25 @@ export default function ExpedientesPage() {
             )}
             {/* Los archivados no se pueden restaurar ni archivar de nuevo */}
             {!esArchivado && (
-              <>
-                <button
-                  className="btn-expediente"
-                  onClick={() => restaurarContrato(c)}
-                  disabled={restaurando === c.id || archivando === c.id}
-                >
-                  {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
-                </button>
-                <button
-                  className="btn-danger"
-                  onClick={() => archivarContrato(c)}
-                  disabled={restaurando === c.id || archivando === c.id}
-                >
-                  {archivando === c.id ? "Archivando…" : "Archivar"}
-                </button>
-              </>
-            )}
+  <>
+    {c.estatus === 'cancelado' && (
+      <button
+        className="btn-expediente"
+        onClick={() => restaurarContrato(c)}
+        disabled={restaurando === c.id || archivando === c.id}
+      >
+        {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
+      </button>
+    )}
+    <button
+      className="btn-danger"
+      onClick={() => archivarContrato(c)}
+      disabled={restaurando === c.id || archivando === c.id}
+    >
+      {archivando === c.id ? "Archivando…" : "Archivar"}
+    </button>
+  </>
+)}
           </div>
         </td>
       </tr>
@@ -325,23 +327,25 @@ export default function ExpedientesPage() {
           <p className="exp-pagos-title">Historial de pagos</p>
           <PagosMobile contratoId={c.id} />
           {!esArchivado && (
-            <div className="exp-card-actions">
-              <button
-                className="btn-expediente"
-                onClick={() => restaurarContrato(c)}
-                disabled={restaurando === c.id || archivando === c.id}
-              >
-                {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
-              </button>
-              <button
-                className="btn-danger"
-                onClick={() => archivarContrato(c)}
-                disabled={restaurando === c.id || archivando === c.id}
-              >
-                {archivando === c.id ? "Archivando…" : "Archivar"}
-              </button>
-            </div>
-          )}
+  <div className="exp-card-actions">
+    {c.estatus === 'cancelado' && (
+      <button
+        className="btn-expediente"
+        onClick={() => restaurarContrato(c)}
+        disabled={restaurando === c.id || archivando === c.id}
+      >
+        {restaurando === c.id ? "Restaurando…" : "← Restaurar"}
+      </button>
+    )}
+    <button
+      className="btn-danger"
+      onClick={() => archivarContrato(c)}
+      disabled={restaurando === c.id || archivando === c.id}
+    >
+      {archivando === c.id ? "Archivando…" : "Archivar"}
+    </button>
+  </div>
+)}
         </div>
       )}
     </div>

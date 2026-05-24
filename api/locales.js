@@ -83,12 +83,12 @@ export default async function handler(req, res) {
     // ─────────────────────────────────────────
 
     if (method === 'GET') {
-
-      const { data, error } = await supabaseAdmin
-        .from('locales')
-        .select('*')
-        .eq('activo', true)
-        .order('numero');
+const soloInactivos = req.query.inactivos === 'true';
+        const { data, error } = await supabaseAdmin
+    .from('locales')
+    .select('*')
+    .eq('activo', !soloInactivos)   // ← activo=true normal, activo=false para inactivos
+    .order('numero');
 
       if (error) throw error;
 
@@ -109,69 +109,80 @@ export default async function handler(req, res) {
         renta,
         mantenimiento_mensual
       } = req.body;
+if (action === 'reactivar') {
+  if (!id) return fail(res, 'ID requerido', 400);
 
+  const { error: reactivarError } = await supabaseAdmin
+    .from('locales')
+    .update({
+      activo: true,
+      deleted_at: null,
+      estatus: 'desocupado'
+    })
+    .eq('id', id);
+
+  if (reactivarError) throw reactivarError;
+
+  return ok(res, null, 'Local reactivado');
+}
       // ───────────────────────────────────────
       // SOFT DELETE
       // ───────────────────────────────────────
 
-      if (action === 'delete') {
+     if (action === 'delete') {
 
-        if (!id) {
-          return fail(res, 'ID requerido', 400);
-        }
+  if (!id) {
+    return fail(res, 'ID requerido', 400);
+  }
 
-        // obtener local
-        const {
-          data: local
-        } = await supabaseAdmin
-          .from('locales')
-          .select('numero, estatus')
-          .eq('id', id)
-          .single();
+  // obtener local
+  const { data: local } = await supabaseAdmin
+    .from('locales')
+    .select('numero, estatus')
+    .eq('id', id)
+    .single();
 
-        if (!local) {
-          return fail(res, 'Local no encontrado', 404);
-        }
+  if (!local) {
+    return fail(res, 'Local no encontrado', 404);
+  }
 
-        // impedir borrar locales activos
-        if (local.estatus === 'rentado') {
-          return fail(
-            res,
-            'No se puede eliminar un local rentado',
-            400
-          );
-        }
+  // impedir borrar locales rentados
+  if (local.estatus === 'rentado') {
+    return fail(
+      res,
+      'No se puede desactivar un local rentado. Envía el contrato a expediente primero.',
+      400
+    );
+  }
 
-        // verificar contratos
-        const {
-          count
-        } = await supabaseAdmin
-          .from('contratos')
-          .select('*', { count: 'exact', head: true })
-          .eq('local_id', local.numero);
+  // ── CAMBIO: solo bloquear si tiene contrato ACTIVO ──
+  const { count } = await supabaseAdmin
+    .from('contratos')
+    .select('*', { count: 'exact', head: true })
+    .eq('local_id', local.numero)
+    .eq('estatus', 'activo');         // ← solo activos
 
-        if (count > 0) {
-          return fail(
-            res,
-            'No se puede eliminar: el local tiene contratos asociados',
-            400
-          );
-        }
+  if (count > 0) {
+    return fail(
+      res,
+      'No se puede desactivar: el local tiene contratos activos. Envíalos a expediente primero.',
+      400
+    );
+  }
 
-        const {
-          error: deleteError
-        } = await supabaseAdmin
-          .from('locales')
-          .update({
-            activo: false,
-            deleted_at: new Date().toISOString()
-          })
-          .eq('id', id);
+  // soft delete
+  const { error: deleteError } = await supabaseAdmin
+    .from('locales')
+    .update({
+      activo: false,
+      deleted_at: new Date().toISOString()
+    })
+    .eq('id', id);
 
-        if (deleteError) throw deleteError;
+  if (deleteError) throw deleteError;
 
-        return ok(res, null, 'Local eliminado');
-      }
+  return ok(res, null, 'Local desactivado');
+}
 
       // ───────────────────────────────────────
       // VALIDACIONES

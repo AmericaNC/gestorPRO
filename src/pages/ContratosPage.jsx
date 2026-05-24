@@ -55,58 +55,99 @@ export default function ContratosPage() {
     }
   };
 const enviarAExpediente = async (contrato) => {
-
-  if (!window.confirm(
-    `¿Enviar el contrato del local ${contrato.local_id} a Expedientes?`
-  )) return;
-
   setEnviando(contrato.id);
 
   try {
-
-    const hoy = new Date();
-
-    const vencimiento = new Date(
-      contrato.fecha_vencimiento + "T23:59:59"
-    );
-
-    const nuevoEstatus =
-      hoy > vencimiento
-        ? "vencido"
-        : "cancelado";
-
-    const { data: { session } } =
-      await supabase.auth.getSession();
-
+    const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
 
+    // 1. Verificar cobertura de pagos
+    const pagosRes = await fetch(apiUrl('/api/pagos'), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        action: "obtener_resumen",
+        contrato_id: contrato.id
+      })
+    });
+
+    const pagosResult = await pagosRes.json();
+    const pagos = pagosResult.data || [];
+    
+    // Verificar si todos los pagos están cubiertos
+    const todosCubiertos = pagos.length > 0 && pagos.every(p => Number(p.monto_pagado || 0) >= Number(p.monto_esperado || 0));
+
+    if (todosCubiertos) {
+      alert(`✓ El arrendatario tiene todos los pagos realizados.\n\nDirige-te al módulo Financiero para que su expediente quede como finalizado o modificado.`);
+      setEnviando(null);
+      return;
+    }
+
+    // Si no todos están cubiertos, pedir confirmación
+    if (!window.confirm(
+      `¿Enviar el contrato del local ${contrato.local_id} a Expedientes?\n\n⚠️ Nota: El arrendatario aún tiene pagos pendientes por cubrir.`
+    )) {
+      setEnviando(null);
+      return;
+    }
+
+    const hoy = new Date();
+    const vencimiento = new Date(contrato.fecha_vencimiento + "T23:59:59");
+    const nuevoEstatus = hoy > vencimiento ? "vencido" : "cancelado";
+
+    // 1. Actualizar estatus del contrato
     const response = await fetch(API_URL_GET, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify({
-        id: contrato.id,
-        estatus: nuevoEstatus
-      })
+      body: JSON.stringify({ id: contrato.id, estatus: nuevoEstatus })
     });
 
     const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Error al actualizar");
 
-    if (!response.ok)
-      throw new Error(result.error || "Error al actualizar");
+    // 2. Si se canceló, marcar pagos futuros pendientes como cancelado
+   if (nuevoEstatus === "cancelado") {
+  const mesActual = new Date().toISOString().slice(0, 7);
+
+  console.log("Intentando cancelar pagos:", {
+    contrato_id: contrato.id,
+    mes_actual: mesActual
+  });
+
+  const cancelRes = await fetch(apiUrl('/api/pagos'), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      action: "cancelar_por_contrato",
+      contrato_id: contrato.id,
+      mes_actual: mesActual
+    })
+  });
+
+  const cancelResult = await cancelRes.json();
+  console.log("Respuesta cancelar pagos:", cancelResult);
+      if (!cancelRes.ok) {
+        console.warn("Contrato cancelado pero pagos no actualizados:", cancelResult.error);
+      } else {
+        console.log(`Pagos cancelados: ${cancelResult.cancelados}`);
+      }
+    }
 
     fetchContratos();
 
   } catch (err) {
-
     alert("Error: " + err.message);
-
   } finally {
-
     setEnviando(null);
-
   }
 };
 
@@ -117,9 +158,12 @@ const enviarAExpediente = async (contrato) => {
 
   useEffect(() => { fetchContratos(); }, []);
 
-  const contratosActivos = contratos.filter(
-    c => c.estatus !== "vencido" && c.estatus !== "cancelado"
-  );
+ // ContratosPage.jsx
+const contratosActivos = contratos.filter(
+  c => c.estatus !== "vencido" &&
+       c.estatus !== "cancelado" &&
+       c.estatus !== "finalizado"  // ← agregar
+);
 
   return (
     <div className="container">

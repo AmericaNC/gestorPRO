@@ -19,7 +19,6 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
   const [arrendatarios, setArrendatarios] = useState([]);
   const [contratosExistentes, setContratosExistentes] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
-
   const [archivoPDF, setArchivoPDF]       = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [nombreArchivo, setNombreArchivo] = useState("");
@@ -35,6 +34,11 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
 
   // ─── Cargar datos al abrir ────────────────────────────────────────────────
   useEffect(() => {
+    const resetUpload = () => {
+      setArchivoPDF(null);
+      setUploadProgress(null);
+      setNombreArchivo("");
+    };
     if (open) {
       fetchOptions();
       resetUpload();
@@ -61,43 +65,51 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
 
   const resetUpload = () => { setArchivoPDF(null); setUploadProgress(null); setNombreArchivo(""); };
 
-  // ─── Fetch opciones ───────────────────────────────────────────────────────
   const fetchOptions = async () => {
-    setLoadingOptions(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+  setLoadingOptions(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
 
-      const [localesRes, arrendRes, contratosRes] = await Promise.all([
-        fetch(API_URL_LOCALES,       { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch(API_URL_ARRENDATARIOS, { headers: { "Authorization": `Bearer ${token}` } }),
-        fetch(API_URL_ACTION,        { headers: { "Authorization": `Bearer ${token}` } })
-      ]);
-      const [localesData, arrendData, contratosData] = await Promise.all([
-        localesRes.json(), arrendRes.json(), contratosRes.json()
-      ]);
+    const [localesRes, arrendRes, contratosRes, archivadosRes] = await Promise.all([
+      fetch(API_URL_LOCALES,       { headers: { "Authorization": `Bearer ${token}` } }),
+      fetch(API_URL_ARRENDATARIOS, { headers: { "Authorization": `Bearer ${token}` } }),
+      fetch(API_URL_ACTION,        { headers: { "Authorization": `Bearer ${token}` } }),
+      fetch(`${API_URL_ACTION}?archivados=true`, { headers: { "Authorization": `Bearer ${token}` } })
+    ]);
 
-      const disponibles = (localesData.data || []).filter(local => {
-        if (esEdicion && Number(local.numero) === Number(contrato?.local_id)) return true;
-        return local.estatus !== "rentado";
-      });
+    const [localesData, arrendData, contratosData, archivadosData] = await Promise.all([
+      localesRes.json(), arrendRes.json(), contratosRes.json(), archivadosRes.json()
+    ]);
 
-      const contratosActivos = (contratosData.data || []).filter(c => c.estatus === "activo");
-      const arrendatariosOcupados = contratosActivos.map(c => c.inquilino_id);
-      const arrendatariosDisponibles = (arrendData.data || []).filter(a => {
-        if (esEdicion && a.id === contrato?.inquilino_id) return true;
-        return !arrendatariosOcupados.includes(a.id);
-      });
+    const disponibles = (localesData.data || []).filter(local => {
+      if (esEdicion && Number(local.numero) === Number(contrato?.local_id)) return true;
+      return local.estatus !== "rentado";
+    });
 
-      setLocales(disponibles);
-      setArrendatarios(arrendatariosDisponibles);
-      setContratosExistentes(contratosData.data || []);
-    } catch (err) {
-      setError("Error cargando opciones: " + err.message);
-    } finally {
-      setLoadingOptions(false);
-    }
-  };
+    const contratosActivos = (contratosData.data || []).filter(c => c.estatus === "activo");
+    const arrendatariosOcupados = contratosActivos.map(c => c.inquilino_id);
+    const arrendatariosDisponibles = (arrendData.data || []).filter(a => {
+      if (esEdicion && a.id === contrato?.inquilino_id) return true;
+      return !arrendatariosOcupados.includes(a.id);
+    });
+
+    setLocales(disponibles);
+    setArrendatarios(arrendatariosDisponibles);
+
+    // Combinar activos/vencidos/finalizados + archivados para validar solapamiento
+    const todosLosContratos = [
+      ...(contratosData.data  || []),
+      ...(archivadosData.data || [])
+    ];
+    setContratosExistentes(todosLosContratos);
+
+  } catch (err) {
+    setError("Error cargando opciones: " + err.message);
+  } finally {
+    setLoadingOptions(false);
+  }
+};
 
   // ─── Autocompletar renta al seleccionar local ─────────────────────────────
   const handleLocalChange = (numeroLocal) => {
@@ -174,16 +186,19 @@ export default function ContratoDrawer({ open, onClose, onSaved, contrato = null
         throw new Error("La fecha de inicio no puede ser mayor a la de vencimiento");
 
       const tieneSolapamiento = contratosExistentes.some(c => {
-        if (esEdicion && c.id === contrato?.id) return false;
-        if (String(c.local_id) !== String(form.local_id)) return false;
-        if (!["activo", "vencido"].includes(c.estatus)) return false;
-        const ini = new Date(c.fecha_inicio), fin = new Date(c.fecha_vencimiento);
-        const ini2 = new Date(form.fecha_inicio), fin2 = new Date(form.fecha_vencimiento);
-        return ini2 <= fin && fin2 >= ini;
-      });
-      if (tieneSolapamiento)
-        throw new Error("Ya existe un contrato activo o vencido para ese local en esas fechas.");
+  if (esEdicion && c.id === contrato?.id) return false;
+  if (String(c.local_id) !== String(form.local_id)) return false;
+  if (c.estatus === "cancelado") return false;  // cancelado libera el periodo
 
+  const ini  = new Date(c.fecha_inicio);
+  const fin  = new Date(c.fecha_vencimiento);
+  const ini2 = new Date(form.fecha_inicio);
+  const fin2 = new Date(form.fecha_vencimiento);
+  return ini2 <= fin && fin2 >= ini;
+});
+
+if (tieneSolapamiento)
+  throw new Error("Ya existe un contrato para ese local en esas fechas.");
      const pdfUrl = await subirPDF();
 
 const hoy = new Date();
